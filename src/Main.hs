@@ -66,7 +66,7 @@ addGhcPath =
   -- see if ghc is already in path;
   -- if not, try looking for it in stack's "programs" directory.
   whenM (isNothing `liftM` which "ghc") $ do
-    progPath <- rstrip <$> (silently $ run "stack" ["path", "--programs"])
+    progPath <- rstrip <$> silently (run "stack" ["path", "--programs"])
     let myFilt x = "ghc" `isPrefixOf` x && isDigit (last x)
     ghcDir <- liftIO $ (maxMay . filter myFilt) `liftM` listDirectory (T.unpack progPath)
     case ghcDir of
@@ -114,7 +114,7 @@ stackBuildDocs dir (Package pkg ver) = do
     run_ "stack" ["haddock", "--only-dependencies"]
   snapshotpkgdb <- rstrip <$> silently (run "stack" ["path", "--snapshot-pkg-db"])
   localpkgdb    <- rstrip <$> silently (run "stack" ["path", "--local-pkg-db"])
-  let verboseCommands  = if (verbose hc) then ["-v2"] else [] 
+  let verboseCommands  = if verbose hc then ["-v2"] else [] 
   let haddockExtraArgs = let args = haddockArgs hc 
                          in if null args
                             then []
@@ -234,13 +234,13 @@ uploadTgz serverUrl expectedType desc = do
     lift $ terror $ T.pack $ unwords ["file", fileName, "isn't a readable file"]
 
   (upType, Package pkg ver) <- let parsed = parseTgzFilename' fileName
-                               in either (lift . terror) (return) parsed 
+                               in either (lift . terror) return parsed 
   when (upType /= expectedType) $
     lift $ terror $ T.unwords ["Expected", desc, "file, got", fileName'']
   -- if all is ok, do the upload.
   let upload = Upload (Package pkg ver) (file hc)  expectedType candType 
   auth <- lift $ getAuth hc
-  let url = getUploadUrl (serverUrl) upload
+  let url = getUploadUrl serverUrl upload
   lift $ echo $ "uploading to " <> T.pack url
   serverResponse <- liftIO $ doUpload serverUrl upload auth
   case serverResponse of 
@@ -296,7 +296,7 @@ main = do
                   then verbosely
                   else id
   shelly $ do
-    silently $ checkPrereqs
+    silently checkPrereqs
     verbosify $ do 
       addGhcPath
       runReaderT mainSh hupCommand 

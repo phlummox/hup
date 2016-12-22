@@ -7,7 +7,7 @@ which is a stack-enabled version of ekmett's [script](https://github.com/ekmett/
 
 In addition to `stack`, requires that `cabal` and `haddock` are on your path.
 (If you're using stack, they're easily installed with, e.g.  `stack install
-cabal`.)
+cabal-install`.)
 
 ## Installation
 

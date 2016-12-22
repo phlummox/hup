@@ -3,7 +3,6 @@
 
 
 module Upload (
-  -- doUpload
   doUpload
 ) where
 
@@ -22,7 +21,7 @@ import Distribution.Hup.Parse             (rstrip, lstrip,takeWhileEnd )
 
 -- | do an upload.
 doUpload :: String -> Upload -> Maybe Auth -> IO (Either String ())
-doUpload server upl userAuth = do
+doUpload server upl userAuth = 
   (displayResponse . mkResponse)  `liftM` upload server upl userAuth 
 
 -- | Turn a 'Response' into some sort of hopefully useful error message
@@ -36,10 +35,10 @@ displayResponse resp = runExcept $ do
                 ", probable body is:\n" ++ probableBody body
   when (codeIsBad && ("text/plain" `BS.isPrefixOf` ctype)) $ 
        throwE $ "Request failed, status message was: "  ++ unpack mesg ++ 
-                ", body is:\n" ++ unpack (body)
+                ", body is:\n" ++ unpack body
   when codeIsBad $
        throwE $ "Request failed, status message was: "  ++ unpack mesg ++ 
-                ", server response body was:\n" ++ (show body)
+                ", server response body was:\n" ++ show body
   return ()
 
 -- | try and grab what's probably the body of an html page &
