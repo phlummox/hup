@@ -40,15 +40,14 @@ before_deploy:
 - echo tag ${TRAVIS_TAG}
 - echo branch ${TRAVIS_BRANCH}
 
-#deploy:
-#  file: dist/${SRC_TGZ}
-#  provider: releases
-#  skip_cleanup: true
-#  # overwrite: true
-#  on:
-#    tags: true
-#    all_branches: true
-#    repo: phlummox/bogocopy
-#  api_key:
-#    secure: XXXX
-
+deploy:
+  file: dist/${SRC_TGZ}
+  provider: releases
+  skip_cleanup: true
+  # overwrite: true
+  on:
+    tags: true
+    all_branches: true
+    repo: phlummox/hup
+  api_key:
+    secure: C8WW1HLSXFl/BhYoIWlI+qiEnbWQyHEmGn7lEztcY3lHjnlRunzmzk7uACDPgjN5sPbDeViY27FK1zGJ3G91zASDlWMigkslBCVVLfIWoGjbQOQVnKGynhu4+M5nOngZ3mqnYJtmDYZoQpRs3hrk80elQ0FHEg3hIw8ZV9vLV2NOuVl3QwIGdz1LTbm6+qXnI7yX+3SW6mJ+DroX1cG86VVN2gTnsbU2/JrNjNosf/wVHiMlKO0YOlLa8q4Y5wV2W70T+ZRn/09/DCBUE90AWjC/U76SDAGvU90xlmVaZBZ60TRvYh+/+CWTuAmDkQCT/89spJ2SYHX332CGujaBNukt0RKWyZaPA4otzx9VQYejINpwUv9Or+eotEu60JZoLk7HVl4qRiSBjx6rodthGjOyxXmPbspSftMrpSrcSEGTWbFydnwcNteyhjsAIeRG5GyE/R+Qmq20anTt2+c/4OKmhAqTouZGD9rPu8aO2z5ImZ96/ArIeSvi+aYZDRVDVh6EWTSrSCyjsjZM4VUEHjHLt3V2vShTgjmi6NNbomDDzA9yyN55cWp0lX5bx5xLrr9XNkbtZb8M1Z1rdOEvUnu3Xv8ajnB5wbOhGB1Ws8ZktBwPGjte4lSBGTR1EwfT356+jvGQqfGo67YbR+C4D7TpU+wAk0Hh/dJs4anB0Y8=
