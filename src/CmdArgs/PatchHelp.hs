@@ -1,4 +1,6 @@
 
+{-# LANGUAGE CPP #-}
+
 {- |
 
 Bits of cmdargs-0.10.14.1, included purely to add some extra
@@ -7,6 +9,9 @@ info to the output of "--help".
 -}
 
 module CmdArgs.PatchHelp where
+
+
+#ifdef PATCH_HELP
 
 import Data.Char (toLower, isDigit)
 import System.Console.CmdArgs.Annotate
@@ -94,3 +99,14 @@ cmdArgsMode = cmdArgsCapture . capture
 --   'System.Environment.withArgs'.
 cmdArgs :: Data a => a -> IO a
 cmdArgs = cmdArgsRun . cmdArgsMode
+
+#else
+
+import System.Console.CmdArgs.Implicit hiding (cmdArgs)
+import qualified System.Console.CmdArgs.Implicit 
+
+cmdArgs :: Data a => a -> IO a
+cmdArgs = System.Console.CmdArgs.Implicit.cmdArgs 
+
+#endif
+

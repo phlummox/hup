@@ -1,0 +1,17 @@
+
+resolver: lts-7.14
+
+packages:
+- '.'
+
+# - location:
+#      git: https://github.com/phlummox/cmdargs
+#      commit:  39e08514ad470c48c82cb42ef3987455c81727de
+#   extra-dep: true
+
+extra-deps: []
+
+flags: {}
+
+extra-package-dbs: []
+

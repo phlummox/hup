@@ -2,10 +2,11 @@
 -- {-# OPTIONS_HADDOCK hide, prune #-}
 
 {- |
-  Functions for building and uploading .tar files for Hackage, containing 
-  source or documentation.
+  Bits and pieces for building and uploading source or documentation .tar files
+  for Hackage, intended to make it easy to write your own Haskell 
+  programs/scripts for managing uploads.
 
-  This is the main entry-point to look at, but more low-level functions are
+  This is the main entry-point to look at, and more low-level functions are
   available in the other modules.
 -}
 
@@ -23,8 +24,12 @@ module Distribution.Hup
 -- * Building tar files
   , buildTar
 -- * Uploading
+  , getUploadUrl
   , mkAuth
-  , doUpload
+  , mkResponse
+  , postPkg
+  , putDocs
+  , upload    
 -- * Types
   , IsCandidate(..)
   , IsDocumentation(..) 
@@ -39,8 +44,4 @@ import Distribution.Hup.BuildTar
 import Distribution.Hup.Parse
 import Distribution.Hup.Types
 import Distribution.Hup.Upload
-
--- | Another bogus thing
-dist_hup :: a -> a
-dist_hup = id
 

@@ -14,13 +14,7 @@ import CmdArgs.PatchHelp (cmdArgs)
 
 defaultServer = DefaultServerUrl.defaultServerUrl 
 
---    --executables           Run haddock for Executables targets
---    --tests                 Run haddock for Test Suite targets
---    --benchmarks            Run haddock for Benchmark targets
---    --all                   Run haddock for all targets
---    --internal              Run haddock for internal modules and include all
---                            symbols
-
+-- | Actions the program can perform
 data HupCommands = 
     Docbuild  { verbose  :: Bool
                 , executables :: Bool
@@ -77,68 +71,63 @@ verbArgs x = x &= help "be verbose"
 -- commands that can be run
 
 packup = 
-  Packup { verbose   = verbArgs   def
-          ,server    = serverArg  defaultServer  
-          ,candidate = def  
-          ,file      = fileArg    def  &= argPos 0  
-          ,user      = userArg    Nothing  
-          ,password  = passwdArg  Nothing }
-           &= help     (unwords   ["Upload FILE as a package (or"
+  Packup
+    { verbose    = verbArgs   def
+      ,server    = serverArg  defaultServer  
+      ,candidate =            def  
+      ,file      = fileArg    def  &= argPos 0  
+      ,user      = userArg    Nothing  
+      ,password  = passwdArg  Nothing }
+       &= help     (unwords   ["Upload FILE as a package (or"
                                               ,"candidate package)."])
 
 docbuild = 
-  Docbuild { verbose    = verbArgs   def
-           ,executables = def
-                          &= help "Run haddock for Executables targets"
-           ,tests       = def
-                          &= help "Run haddock for Test Suite targets"
-           ,internal    = def
-                          &= help  ( unwords ["Run haddock for internal modules"
-                                             , "and include all symbols"])
-
-
-
-           ,haddockArgs = def
-                          &= help "extra args to pass to haddock"
-                          &= name "haddock-arguments"
-                          &= typ "ARGS"   
-           ,quick       = def
-                          &= help "quick build - don't build docco for dependencies (links will be broken)"
-}
-                          &= help "Run haddock for Test Suite targets"
-            &= help       (unwords ["Build documentation for a"
-                                   ," package."])
+  Docbuild
+    { verbose     = verbArgs  def
+     ,executables =           def &= help "Run haddock for Executables targets"
+     ,tests       =           def &= help "Run haddock for Test Suite targets"
+     ,internal    =           def &= help (unwords ["Run haddock for internal"
+                                           ,"modules and include all symbols"])
+     ,haddockArgs =           def &= help "extra args to pass to haddock"
+                                  &= explicit
+                                  &= name "haddock-arguments"
+                                  &= typ  "ARGS"   
+     ,quick       =           def &= help (unwords ["quick build - don't build"
+                                          ,"docco for dependencies (links may"
+                                          ,"be broken)"])
+     }
+      &= help     "Build documentation for a package."
 
 docup =
-  Docup { server = serverArg  defaultServer 
-         ,file   = fileArg    def &= argPos 0 }
-         &= help              "Upload FILE as documentation."
+  Docup 
+    { server = serverArg  defaultServer 
+     ,file   = fileArg    def &= argPos 0 
+     }
+     &= help "Upload FILE as documentation."
 
 docboth = 
-  Docboth {}
-          &= help (unwords ["Build and upload documentation"
-                           ,"for a package."])
+  Docboth 
+    {}
+    &= help "Build and upload documentation for a package."
 
+-- Process command-line arguments
 processArgs = do
    args <- getArgs
     -- If the user did not specify any arguments, pretend as "--help" was given
-   (if null args then withArgs ["--help"] else id) processArgsO
-
-
-processArgsO :: IO HupCommands
-processArgsO = cmdArgs $ modes   [packup,  
-            docbuild &= groupname "A", 
-            docup    &= groupname "B",
-            docboth  &= groupname "C"] 
-            -- no idea what the "groupname"s are doing, they seem
-            -- to have no effect except that they keep the commands
-            -- in an order I prefer.
-      &= help progHelp
-      &= program "hup"
-      &= summary ("hup v" ++ showVersion version)
-      &= helpArg [explicit, name "h", name "help"]
+   (if null args then withArgs ["--help"] else id) proc
 
   where 
+  proc :: IO HupCommands
+  proc = cmdArgs $ -- commands that can be run, i.e. "modes"
+           modes [packup  
+                 ,docbuild -- &= groupname "A" 
+                 ,docup    -- &= groupname "B"
+                 ,docboth ]  -- &= groupname "C"] 
+                  &= help progHelp
+                  &= program "hup"
+                  &= summary ("hup v" ++ showVersion version)
+                  &= helpArg [explicit, name "h", name "help"]
+
   progHelp = unwords 
      ["Build and/or upload packages or documentation to a hackage server."
      ,"A server url should be of the format PROTOCOL://SERVER[:PORT]/,"

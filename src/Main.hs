@@ -11,49 +11,41 @@ module Main where
 import Prelude hiding (FilePath)
 import qualified Prelude
 
-import Control.Monad --- ---XX
 import Control.Monad.IO.Class     ( MonadIO(..) )
-import Control.Monad.Reader --- ---XX
+import Control.Monad.Reader       (MonadReader(..), runReaderT, liftM)
 import Control.Monad.Trans        (lift)
 import Control.Monad.Trans.Maybe  (MaybeT(..))
 import Control.Monad.Trans.Except (ExceptT(..),runExceptT,throwE)
 import Data.Char                  (isSpace, isDigit)
 import Data.Either                (either)
 import Data.IORef
-import Data.List                  (dropWhileEnd)
-import qualified Data.List as L
+import Data.List                  (dropWhileEnd,isPrefixOf)
 import Data.Maybe                 (isNothing)
 import Data.Text                  ( Text(..) )
 import qualified Data.Text as T
 import Data.Monoid                ( (<>) )
 import Shelly.Lifted
-import System.Directory -- ---XXXX
+import System.Directory           (listDirectory)
 import System.IO                  (hSetBuffering, BufferMode( LineBuffering )
                                   , stdout)
-import System.IO.Unsafe           (unsafePerformIO)
 
-import Distribution.Hup           (
-                                    Package(..),IsDocumentation(..)
+import Distribution.Hup           ( Package(..),IsDocumentation(..)
                                   ,IsCandidate(..),Auth(..),Upload(..)
-                                  ,doUpload,mkAuth
---import Distribution.Hup.BuildTar  
-                                  ,buildTar
---import Distribution.Hup.Parse  
+                                  ,mkAuth ,buildTar
                                   ,findCabal, readCabal, extractCabal
-                                  ,parseTgzFilename)
+                                  ,parseTgzFilename, parseTgzFilename' 
+                                  , getUploadUrl)
 import Types                      (Server(..))
 import CmdArgs                    (HupCommands(..), isUpload, processArgs)
-import CmdArgs.PatchHelp          (tmpXX)
+import Upload                     (doUpload)
 
-import qualified Distribution.Hup as DH 
 
-dist_hupX = DH.dist_hup
---buildTar2 = DH.buildTar
-
--- | just a convenience alias, short for @'MonadIO' m, 'MonadSh' m, 'MonadShControl' m
+-- | just a convenience alias, short for @'MonadIO' m, 'MonadSh' m,
+--  'MonadShControl' m
 type MonadShellish m = (MonadIO m, MonadSh m, MonadShControl m) 
 
--- | just a convenience alias, short for @'MonadIO' m, 'MonadSh' m, 'MonadShControl' m, 'MonadReader' 'HupCommands' m@
+-- | just a convenience alias, short for @'MonadIO' m, 'MonadSh' m,
+-- 'MonadShControl' m, 'MonadReader' 'HupCommands' m@
 type MonadHup m = (MonadIO m, MonadSh m, MonadShControl m, MonadReader HupCommands m)
 
 rstrip :: Text -> Text
@@ -63,18 +55,19 @@ rstrip = T.dropWhileEnd isSpace
 haddockCanHyperlinkSrc :: MonadShellish m  => m Bool
 haddockCanHyperlinkSrc = errExit False $ do
   run_ "haddock" ["--hyperlinked-source"]
-  (==0) <$> lastExitCode
+  (==0) `liftM` lastExitCode
 
 -- | safe version of "maximum"
 maxMay xs = if null xs then Nothing else Just $ maximum xs
 
+-- | look for ghc & try to add it to path
 addGhcPath :: MonadShellish m => m ()
 addGhcPath = 
   -- see if ghc is already in path;
   -- if not, try looking for it in stack's "programs" directory.
   whenM (isNothing `liftM` which "ghc") $ do
     progPath <- rstrip <$> (silently $ run "stack" ["path", "--programs"])
-    let myFilt x = "ghc" `L.isPrefixOf` x && isDigit (last x)
+    let myFilt x = "ghc" `isPrefixOf` x && isDigit (last x)
     ghcDir <- liftIO $ (maxMay . filter myFilt) `liftM` listDirectory (T.unpack progPath)
     case ghcDir of
       Nothing -> terror "couldn't find ghc on path, please add it"
@@ -104,44 +97,33 @@ addGhcPath =
 -- When running from within ghci, you may have to unset some
 -- environment variables that have been set.
 --
--- import System.Environment
--- import Control.Monad
--- mapM_ unsetEnv ["HASKELL_PACKAGE_SANDBOXES", "GHC_PACKAGE_PATH", "HASKELL_PACKAGE_SANDBOX", "STACK_EXE", "HASKELL_DIST_DIR"]
+-- > import System.Environment
+-- > import Control.Monad
+-- > mapM_ unsetEnv ["HASKELL_PACKAGE_SANDBOXES", "GHC_PACKAGE_PATH", "HASKELL_PACKAGE_SANDBOX", "STACK_EXE", "HASKELL_DIST_DIR"]
 --
---
--- TODO: ensure any exceptions handled gracefully
-stackBuildDocs
-  :: MonadHup m => FilePath -> Package -> m Upload
+stackBuildDocs :: MonadHup m => FilePath -> Package -> m Upload
 stackBuildDocs dir (Package pkg ver) = do
   hc <- ask
-  let isCand =   if candidate hc
-                  then CandidatePkg
-                  else NormalPkg 
-
+  -- work out flags to call with ...
   canHyperlink <- haddockCanHyperlinkSrc 
-  let builddir= toTextIgnore $ dir </> "dist"
-      hyperlinkFlag = if canHyperlink
+  let hyperlinkFlag = if canHyperlink
                       then ["--haddock-option=--hyperlinked-source"]
                       else []
-  pkg <- return $ T.pack pkg
-  ver <- return $ T.pack ver
-  echo "build dependencies docs"
-  run_ "stack" ["haddock", "--only-dependencies"]
+  unless (quick hc) $ do
+    echo "build dependencies docs"
+    run_ "stack" ["haddock", "--only-dependencies"]
   snapshotpkgdb <- rstrip <$> silently (run "stack" ["path", "--snapshot-pkg-db"])
   localpkgdb    <- rstrip <$> silently (run "stack" ["path", "--local-pkg-db"])
-  let verboseCommands = if (verbose hc) then ["-v2"] else [] ---XXXMONREADER
+  let verboseCommands  = if (verbose hc) then ["-v2"] else [] 
   let haddockExtraArgs = let args = haddockArgs hc 
                          in if null args
                             then []
-                            else ["--haddock-options=" 
-                                  <> T.pack(haddockArgs hc)]
+                            else ["--haddock-options=" <>T.pack(haddockArgs hc)]
   let cabalExtraArgs =(if executables hc then ["--executables"] else [])
                     ++(if tests hc then ["--tests"] else [])
                     ++(if internal hc then ["--internal"] else [])
-        
---                    ++(if tests hc then ["--tests"] else [])
-
   echo "configuring"
+  let builddir= toTextIgnore $ dir </> "dist"
   run "cabal" $["configure", "--builddir="<>builddir, 
                "--package-db=clear", "--package-db=global", 
                "--package-db=" <> snapshotpkgdb, 
@@ -152,6 +134,8 @@ stackBuildDocs dir (Package pkg ver) = do
                "--contents-location=/package/$pkg-$version"] 
                ++ hyperlinkFlag ++ verboseCommands
                ++ haddockExtraArgs
+  pkg <- return $ T.pack pkg
+  ver <- return $ T.pack ver
   let srcDir = builddir </> "doc" </> "html" </> pkg
       tgtDir = dir </> (pkg <> "-" <> ver <> "-docs")
   cp_r srcDir tgtDir
@@ -160,15 +144,12 @@ stackBuildDocs dir (Package pkg ver) = do
     up = T.unpack
     fromPath = T.unpack . toTextIgnore 
     docTgz = fromPath $ dir </> (pkg<>"-"<>ver <> "-docs.tar.gz") 
-
     docDir = pkg <> "-" <> ver <> "-docs" 
   -- or, if you have tar on system, could use:
   --    run "tar" ["cvz", "-C", dir, "--format=ustar", "-f", docTgz,
   --                pkg <> "-" <> ver <> "-docs" ]
   liftIO $ buildTar docTgz (fromPath dir) [up docDir]
-  return $ Upload (Package (up pkg) (up ver)) docTgz IsDocumentation isCand
-
-
+  return $ Upload (Package (up pkg) (up ver)) docTgz IsDocumentation (isCand hc)
 
 
 -- | if we have a username, then we need to get
@@ -196,52 +177,76 @@ runEarlyReturn :: Monad m => MonadDone m () -> m ()
 runEarlyReturn f = 
   either (const ()) id <$> runExceptT f
 
+-- exit early
 done :: Monad m => ExceptT Done m a
 done = throwE Done
 
+isCand hc = 
+  if candidate hc
+  then CandidatePkg
+  else NormalPkg 
+
+
 fromString = fromText . T.pack
 
+-- | check that stack, cabal & haddock are on path
+checkPrereqs :: MonadSh m => m ()
+checkPrereqs = do
+  whenM (isNothing <$> which "stack") $  do
+    echo "Couldn't find stack on path - do you need to install stack?"
+    quietExit 1
+  whenM (isNothing <$> which "cabal") $ do
+    echo $ T.unwords ["Couldn't find cabal on path - do you need to"
+                      ,"run 'stack install cabal-install'? Exiting"]
+    quietExit 1
+  whenM (isNothing <$> which "haddock") $ do
+    echo $ T.unwords ["Couldn't find haddock on path - do you need to"
+                      ,"run 'stack install haddock'? Exiting"]
+    quietExit 1
 
--- can prob split this out.
+
+-- | Look at a FILE command-line arg of something we've been asked to
+-- upload, & try uploading it.
+--
+-- Will throw exceptions if the file doesn't exist, or doesn't look
+-- like a .tar.gz file, or if we've been asked to upload docco &
+-- it looks like a source file.
+--
+-- If the upload fails due to a bad status, however, it should
+-- give a hopefully comprehensible message then end early.
+--
+-- todo: give nice error messages, rather than throwing exceptions
+-- in some cases?
 uploadTgz :: 
     (MonadSh m, MonadIO m, MonadReader HupCommands m) =>
     String -> IsDocumentation -> Text -> MonadDone m ()
 uploadTgz serverUrl expectedType desc = do 
   hc <- ask
   let fileName = file hc 
-      candType = if candidate hc
-                then CandidatePkg
-                else NormalPkg 
-
-  auth <- lift $ getAuth hc
-
-
-  fileExists <- lift $ test_e $ fromString fileName
-  when (not fileExists) $ 
+      fileName' = fromString fileName
+      fileName'' = T.pack fileName
+      candType = isCand hc 
+  -- check file actually exists & is regular (not directory)
+  whenM (lift $ not `liftM` test_e fileName') $ 
     lift $ terror $ T.pack $ unwords ["file", fileName, "doesn't exist"]
   fileReg <- lift $ test_f $ fromString fileName
   when (not fileReg) $ 
     lift $ terror $ T.pack $ unwords ["file", fileName, "isn't a readable file"]
 
-
-  (upType, Package pkg ver) <- getTgzDetails2
+  (upType, Package pkg ver) <- let parsed = parseTgzFilename' fileName
+                               in either (lift . terror) (return) parsed 
   when (upType /= expectedType) $
-    lift $ terror $ T.unwords ["Expected", desc, "file, got",
-                               T.pack $ file hc]
+    lift $ terror $ T.unwords ["Expected", desc, "file, got", fileName'']
+  -- if all is ok, do the upload.
   let upload = Upload (Package pkg ver) (file hc)  expectedType candType 
-  -- lift $ inspect upload
+  auth <- lift $ getAuth hc
+  let url = getUploadUrl (serverUrl) upload
+  lift $ echo $ "uploading to " <> T.pack url
   serverResponse <- liftIO $ doUpload serverUrl upload auth
   case serverResponse of 
     Left err -> do lift $ echo $ "Error from server:\n" <> T.pack err
                    throwE Done 
-    Right _  -> return ()
-
-getTgzDetails2 :: (MonadSh m, MonadIO m, MonadReader HupCommands m) => 
-                  ExceptT Done m (IsDocumentation, Package)
-getTgzDetails2= ask >>= \hc ->
-                  case parseTgzFilename $ file hc of
-                      Left err -> lift $ terror err
-                      Right x  -> return x
+    Right _  -> lift $ echo "Uploaded successfully"
 
 
 
@@ -257,60 +262,33 @@ mainSh =  do
   hc <- ask
   withTmpDir $ \tmpDir -> 
     runEarlyReturn $ do
-    let v = verbose hc
-        candType = if candidate hc
-                  then CandidatePkg
-                  else NormalPkg 
-        -- we drop any trailing slashes, "doUpload" will add them
-        -- as needed.
-        serverUrl = dropWhileEnd (=='/') $ server hc
-    auth <- lift $ getAuth hc
-    cabalConts <- liftIO readCabal
-    let packageName = extractCabal "name" cabalConts
-        packageVer  = extractCabal "version" cabalConts 
+      cabalConts <- liftIO readCabal
+      let packageName = extractCabal "name" cabalConts
+          packageVer  = extractCabal "version" cabalConts 
+      case hc of
+        Packup {}   -> do uploadTgz (server hc) IsPackage "package"  
+                          throwE Done
+        Docup  {}   -> do uploadTgz (server hc) IsDocumentation "documentation"
+                          throwE Done
+        _           -> return () -- i.e. carry on.
+      -- if still here, we've been asked to do a build.
+      uploadable <- do let p = Package packageName packageVer
+                       buildRes <- lift $ stackBuildDocs tmpDir p  
+                       let tgzFile = fromText $ T.pack $ fileToUpload buildRes 
+                       case hc of 
+                         Docbuild {} -> lift (cp tgzFile ".") >>
+                                        throwE Done
+                         _           -> return buildRes
+      auth     <- lift $ getAuth hc
+      let url = getUploadUrl (server hc) uploadable
+      lift $ echo $ "uploading to " <> T.pack url
+      response <- liftIO $ doUpload (server hc) uploadable auth
+      case response of 
+        Left err -> do lift $ echo $ "Error from server:\n'" <> T.pack err
+                       throwE Done 
+        _        -> return ()
 
-    -- if just doing upload ...
-    case hc of
-      -- factor out common code
-      -- handle authentication
-      Packup {}   -> do uploadTgz serverUrl   
-                                       IsPackage "package"  
-                        throwE Done
-
-      Docup  {}   -> do uploadTgz serverUrl  IsDocumentation 
-                                       "documentation"  
-                        throwE Done
-      _           -> return ()
-
-    uploadable <- do let p = Package packageName packageVer
-                     buildRes <- lift $ stackBuildDocs tmpDir p  
-                     let tgzFile = fromText $ T.pack $ fileToUpload buildRes 
-                     case hc of 
-                       Docbuild {} -> lift (cp tgzFile ".") >>
-                                      throwE Done
-                       _           -> return buildRes
-    response <- liftIO $ doUpload serverUrl uploadable auth
-    case response of 
-      Left err -> do lift $ echo $ "Error from server:\n'" <> T.pack err
-                     throwE Done 
-      Right _  -> return ()
-
-
-
-checkPrereqs :: MonadSh m => m ()
-checkPrereqs = do
-  
-  whenM (isNothing <$> which "stack") $  
-    echo "Couldn't find stack on path - do you need to install stack?"
-
-  let apps = ["cabal", "haddock"]
-
-  forM_ apps $ \app -> 
-    whenM (isNothing <$> which (fromText app)) $ do
-      echo $ T.unwords ["Couldn't find", app, "on path - do you need to"
-                        ,"run 'install", app <> "'? Exiting"]
-      quietExit 1
-
+main :: IO ()
 main = do
   hSetBuffering stdout LineBuffering
   hupCommand <- processArgs
@@ -323,8 +301,6 @@ main = do
       addGhcPath
       runReaderT mainSh hupCommand 
   return ()
-
-
 
 
 

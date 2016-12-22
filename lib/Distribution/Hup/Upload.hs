@@ -3,7 +3,9 @@
 
 {-| 
 
-Handle uploading to a hackage server.
+Handle uploading to a hackage server, using the @HTTP@ API described
+in the 
+<https://hackage.haskell.org/api Hackage server documentation>.
 
 -}
 
@@ -15,11 +17,7 @@ module Distribution.Hup.Upload (
 where
 
 import Control.Exception (SomeException(..))
-import Control.Monad              --(when)
-import Control.Monad.IO.Class     --( MonadIO(..) )
-import Control.Monad.Trans.Except -- (ExceptT(..),runExceptT,throwE)
 import Control.Lens 
-import qualified Data.List as L
 import Data.List                  (dropWhileEnd)
 import Data.ByteString.Char8  (pack, unpack, putStrLn)
 import qualified Data.ByteString.Char8 as C8
@@ -27,39 +25,38 @@ import qualified Data.ByteString.Lazy.Char8 as LC8
 import qualified Data.ByteString.Lazy   as BS 
 import Data.ByteString.Lazy   ( ByteString(..))
 import Data.Monoid            ( (<>) )
-import Data.Ord   -- comparing
-import Network.Wreq as W 
-import Network.Wreq.Types     hiding (auth,checkStatus)
-
-import System.IO.Unsafe
-
+import Network.Wreq as W hiding (Response, statusCode) 
+import qualified Network.Wreq as W 
+import Network.Wreq.Types     hiding (auth,checkStatus,responseBody)
 
 import Distribution.Hup.Types 
   -- IsCandidate(..), IsDocumentation(..), Package(..)
 import Distribution.Hup.Parse -- takeWhileEnd
 
-import Text.HTML.TagSoup as TS
+-- | Alias for <https://hackage.haskell.org/package/wreq wreq's>
+-- 'Network.Wreq.Response' type.
+type WResponse = W.Response
+
 
 -- | Bundle together information useful for an upload.
-data Upload = Upload { package :: Package -- ^ package name & version
-                      ,fileToUpload  :: FilePath        -- ^ file being uploaded
-                      ,uploadType    :: IsDocumentation -- ^ docco or package 
-                      ,isCandidate   :: IsCandidate    -- ^ candidate or not
-                     }
-  deriving (Show, Eq)
+data Upload = 
+    Upload { package       :: Package -- ^ package name & version
+            ,fileToUpload  :: FilePath        -- ^ file being uploaded
+            ,uploadType    :: IsDocumentation -- ^ docco or package 
+            ,isCandidate   :: IsCandidate    -- ^ candidate or not
+           } deriving (Show, Eq)
 
--- | returns appropriate options to use with
+-- | returns default options to use with
 -- a request.
 -- 
 -- We try to request plain text where possible; 
 -- and we allow non-success statuses to still return normally
 -- (rather than throwing an exception)
-getOptions :: Maybe Auth -> Options
-getOptions maybeAuth = defaults 
+defaultOptions :: Maybe Auth -> Options
+defaultOptions maybeAuth = defaults 
                           & header "Accept" .~ ["text/plain"] 
                           & auth .~ maybeAuth
                           & checkStatus .~ (Just myHandler)
-
   where 
     --myHandler :: Status -> ResponseHeaders -> CookieJar -> Maybe SomeException
     myHandler :: Status -> t1 -> t2 -> Maybe SomeException
@@ -78,135 +75,95 @@ mkAuth name password =
 -- "http://localhost:8080/package/foo-0.1.0.0/candidate/docs"
 getUploadUrl
   :: String -> Upload -> String
-getUploadUrl server upload  = 
+getUploadUrl server upl  = 
 -- TODO:
 -- handle Yackage as well?
 --  https://github.com/snoyberg/yackage/blob/master/yackage-upload.hs 
    let 
        -- we are permissive, and drop any extra trailing slashes on server.
-       serverUrl = (\x -> x ++ "/") $ dropWhileEnd (=='/') $ server 
-
-       (Upload (Package pkgName pkgVer) filePath uploadType pkgType ) = 
-                                          upload
+       serverUrl = dropWhileEnd (=='/') $ server 
+       (Upload (Package pkgName pkgVer) filePath uploadType pkgType ) = upl
    in case uploadType of
-       IsPackage -> 
-          let url = case pkgType of
-                         NormalPkg    -> server <>"packages/"   
-                         CandidatePkg -> server <>"packages/candidates/"
-          in  url 
+       IsPackage -> case pkgType of
+         NormalPkg       -> serverUrl <>"/packages/"   
+         CandidatePkg    -> serverUrl <>"/packages/candidates/"
        IsDocumentation ->
-          let url = case pkgType of
-                         NormalPkg    -> server <> "package/" <> pkgName
-                                                <> "-" <> pkgVer <> "/docs"
-   
-                         CandidatePkg -> server <> "package/" <> pkgName 
-                                                <> "-" <> pkgVer 
-                                                <> "/candidate/docs"
-          in  url 
+          case pkgType of
+            NormalPkg    -> serverUrl <> "/package/" <> pkgName
+                                      <> "-" <> pkgVer <> "/docs"
+            CandidatePkg -> serverUrl <> "/package/" <> pkgName 
+                                      <> "-" <> pkgVer 
+                                      <> "/candidate/docs"
 
-
-doUpload_O
-  :: String -> Upload -> Maybe Auth -> IO (Response ByteString)
-doUpload_O server upload userAuth = 
+-- | @upload serverUrl upl userAuth@ - upload some package (details
+-- packed into @upl@ to the server at @serverUrl@, using
+-- the credentials in @userAuth@.
+upload
+  :: String -> Upload -> Maybe Auth -> IO (WResponse ByteString)
+upload serverUrl upl userAuth = 
 -- TODO:
 -- handle Yackage as well?
 --  https://github.com/snoyberg/yackage/blob/master/yackage-upload.hs 
-   let 
-       (Upload (Package pkgName pkgVer) filePath uploadType pkgType ) = 
-                                          upload
+   let (Upload _ filePath uploadType _pkgType ) = upl
    in case uploadType of
        IsPackage -> 
-          let url = getUploadUrl server upload
+          let url = getUploadUrl serverUrl upl
           in  postPkg url filePath userAuth
        IsDocumentation ->
-          let url = getUploadUrl server upload
+          let url = getUploadUrl serverUrl upl
           in  putDocs url filePath userAuth
 
--- | try and grab what's probably the body of an html page &
--- extract the text. Our rule of thumb is, it's the bigger of the set of tags
--- coming from end to beginning that aren't obviously headers,
--- OR the tag labelled as body.
+
+-- | Relevant bits of server response, packed into a record
+-- for those who don't want to deal with wreq's 
+-- 'Network.Wreq.Response' type.
+data Response = 
+  Response {
+      statusCode   :: Int
+    , message      :: ByteString
+    , contentType  :: ByteString
+    , responseBody :: ByteString  
+  }
+
+-- | adapt wreq's 'Network.Wreq.Response' type into a 'Response'
+mkResponse :: WResponse ByteString -> Response
+mkResponse resp = 
+  let code  = resp ^. responseStatus ^. W.statusCode
+      mesg  = BS.fromStrict $ resp ^. responseStatus ^. statusMessage
+      ctype = BS.fromStrict $ resp ^. responseHeader "Content-Type"
+      body  = resp ^. W.responseBody
+  in Response code mesg ctype body
+
+
+-- | Do a @POST@ request to upload a package.
 --
--- (some 404 pages don't bother to include a "body" tag)
-probableBody :: Response ByteString -> String
-probableBody serverResponse =
-  let bod = serverResponse ^. responseBody
-      parsedBod = TS.parseTags bod
-
-      toString :: [Tag ByteString] -> String
-      toString = rstrip . lstrip . LC8.unpack . innerText 
-
-      headerTags :: [String]
-      headerTags = ["<style>", "<header>", "<title>", "<meta>"]
-  
-      bodyTag :: String
-      bodyTag = "<body>"
-
-      notHeader t = L.all (t ~/=) headerTags  
-  
-      notHeaderBits = toString $ L.tail $ takeWhileEnd notHeader parsedBod
-
-      possBodyBits = toString $ dropWhile (~/= bodyTag) parsedBod
-
-  in L.maximumBy (comparing length) [notHeaderBits, possBodyBits]
-
--- | do an upload.
-doUpload
-  :: MonadIO m =>
-     String
-     -> Upload -> Maybe Auth -> m (Either String (Response ByteString))
-doUpload server upload userAuth = runExceptT $ do
-  resp <- liftIO $ doUpload_O server upload userAuth 
-  let code  = resp ^. responseStatus ^. statusCode
-      mesg  = resp ^. responseStatus ^. statusMessage
-      ctype = resp ^. responseHeader "Content-Type"
-      codeIsBad = code < 200 || code >= 300
-
-  when (codeIsBad && ("text/html" `C8.isPrefixOf` ctype)) $ 
-      throwE $ "Request failed, status message was: "  ++ unpack mesg ++ 
-               ", probable body is:\n" ++ probableBody resp
-
-  when (codeIsBad && ("text/plain" `C8.isPrefixOf` ctype)) $ 
-      throwE $ "Request failed, status message was: "  ++ unpack mesg ++ 
-               ", body is:\n" ++ LC8.unpack (resp ^. responseBody)
-
-  when codeIsBad $
-      throwE $ "Request failed, status message was: "  ++ unpack mesg ++ 
-               ", full server response was:\n" ++ (show resp)
-  return resp 
-
---test :: IO (Response ByteString)
-test :: IO (Either String (Response ByteString))
-test = do 
-  let u = Upload (Package "foo" "0.1.0.0") "./hup-0.1.0.0.tar.gz"  IsDocumentation CandidatePkg 
-  doUpload "http://www.google.com.au" u Nothing
-
-
--- either the response will throw an error, or, if we're still here,
--- it succeeded.
---
--- the response body has any warnings from the hackage server.
--- so do a catch, or ...
---                            return $ response fileFormPart^. responseBody
+-- @postPkg url fileName userAuth@ will try to upload the file given
+-- by @fileName@ to the URL at @url@, using the user authentication
+-- @userAuth@.
 postPkg
-  :: String -> FilePath -> Maybe Auth -> IO (Response ByteString)
+  :: String -> FilePath -> Maybe Auth -> IO (WResponse ByteString)
 postPkg url fileName userAuth = 
-  let opts = getOptions userAuth 
+  let opts = defaultOptions userAuth 
   in  postWith opts url (partFile "package" fileName)
 
 
+-- | Do a @PUT@ request to upload package documentation.
+--
+-- @postPkg url fileName userAuth@ will try to upload the file given
+-- by @fileName@ to the URL at @url@, using the user authentication
+-- @userAuth@.
 putDocs
   :: String
-     -> FilePath -> Maybe Auth -> IO (Response ByteString)
+     -> FilePath -> Maybe Auth -> IO (WResponse ByteString)
 putDocs url fileName userAuth = do 
-  let opts = getOptions userAuth 
+  let opts = defaultOptions userAuth 
               & header "Content-Type" .~ ["application/x-tar"] 
               & header "Content-Encoding" .~ ["gzip"] 
   conts <- BS.readFile fileName 
   putWith opts url conts 
 
 
-testUpload :: IO (Response ByteString)
+testUpload :: IO (WResponse ByteString)
 testUpload = do
   let
     myServer   = "http://localhost:8080" 
@@ -220,9 +177,9 @@ testUpload = do
     pkgType    = CandidatePkg
     --uploadType = IsPackage 
     uploadType = IsDocumentation 
-    upload = Upload (Package pkgName pkgVer) fileName  uploadType pkgType 
+    upl = Upload (Package pkgName pkgVer) fileName  uploadType pkgType 
     auth = Just $ BasicAuth (pack myUser) (pack myPassword)
-  doUpload_O myServer upload auth
+  upload myServer upl auth
 
 
 
