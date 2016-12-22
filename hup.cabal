@@ -1,0 +1,69 @@
+name:                hup
+version:             0.1.0.0
+synopsis:            Upload packages or documentation to hackage-server
+description:         
+  Upload packages or documentation to hackage-server
+  .
+  See README for details.
+homepage:            https://github.com/phlummox/hup
+license:             BSD2
+license-file:        LICENSE
+author:              phlummox
+maintainer:          phlummox2@gmail.com
+copyright:           phlummox 2016, others where indicated
+category:            Distribution, Web, Documentation  
+build-type:          Simple
+tested-with:         GHC == 8.0.1 
+cabal-version:       >=1.10
+extra-source-files:  README.md
+
+library
+  hs-source-dirs:      lib
+  exposed-modules:     
+      Distribution.Hup
+    , Distribution.Hup.BuildTar
+    , Distribution.Hup.Parse
+    , Distribution.Hup.Types
+    , Distribution.Hup.Upload
+  build-depends:       
+      base >= 4.7 && < 5
+    , bytestring
+    , directory
+    , filepath
+    , lens
+    , mtl
+    , split
+    , tagsoup
+    , transformers
+    , tar
+    , wreq
+    , zlib
+  default-language:    Haskell2010
+
+executable hup
+  hs-source-dirs:      src
+  main-is:             Main.hs
+  other-modules:       
+      Types
+    , CmdArgs
+    , CmdArgs.PatchHelp
+    , DefaultServerUrl
+  default-language:    Haskell2010
+  build-depends:       
+      base 
+    , cmdargs == 0.10.14.1
+-- if using patched help, need to use cmdargs-0.10.14
+    , directory
+    , mtl
+--    , safe
+    , shelly
+    -- shelly >= 1.6.5 ??
+    , text
+    , transformers
+    , hup
+
+source-repository head
+  type:     git
+  location: https://github.com/phlummox/hup
+
+
