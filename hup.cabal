@@ -44,6 +44,8 @@ Flag PatchHelpMessage
     message. Needs stack, so it can be pulled from github. (Or you need
     to fetch the patched version and add it to a cabal sandbox.)
   Default:     False
+  Manual:      True
+
 
 executable hup
   hs-source-dirs:      src

@@ -37,7 +37,7 @@ import Distribution.Hup           ( Package(..),IsDocumentation(..)
                                   , getUploadUrl)
 import Types                      (Server(..))
 import CmdArgs                    (HupCommands(..), isUpload, processArgs)
-import Upload                     (doUpload)
+import Upload                     (doUpload, doUpload2)
 
 
 -- | just a convenience alias, short for @'MonadIO' m, 'MonadSh' m,
@@ -242,11 +242,12 @@ uploadTgz serverUrl expectedType desc = do
   auth <- lift $ getAuth hc
   let url = getUploadUrl serverUrl upload
   lift $ echo $ "uploading to " <> T.pack url
-  serverResponse <- liftIO $ doUpload serverUrl upload auth
+  serverResponse <- liftIO $ doUpload2 serverUrl upload auth
   case serverResponse of 
     Left err -> do lift $ echo $ "Error from server:\n" <> T.pack err
                    throwE Done 
-    Right _  -> lift $ echo "Uploaded successfully"
+    Right msg  -> lift $ do echo "Uploaded successfully"
+                            echo $ "mesg was" <> T.pack msg
 
 
 
@@ -282,11 +283,14 @@ mainSh =  do
       auth     <- lift $ getAuth hc
       let url = getUploadUrl (server hc) uploadable
       lift $ echo $ "uploading to " <> T.pack url
-      response <- liftIO $ doUpload (server hc) uploadable auth
+      response <- liftIO $ doUpload2 (server hc) uploadable auth
       case response of 
         Left err -> do lift $ echo $ "Error from server:\n'" <> T.pack err
                        throwE Done 
-        _        -> return ()
+        Right msg -> lift $ do echo "Uploaded successfully"
+                               echo $ "mesg was" <> T.pack msg
+
+
 
 main :: IO ()
 main = do

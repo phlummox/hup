@@ -4,6 +4,7 @@
 
 module Upload (
   doUpload
+  ,doUpload2
 ) where
 
 import Control.Monad                      
@@ -24,6 +25,13 @@ doUpload :: String -> Upload -> Maybe Auth -> IO (Either String ())
 doUpload server upl userAuth = 
   (displayResponse . mkResponse)  `liftM` upload server upl userAuth 
 
+-- | do an upload.
+doUpload2 :: String -> Upload -> Maybe Auth -> IO (Either String String)
+doUpload2 server upl userAuth = 
+  (displayResponse2 . mkResponse)  `liftM` upload server upl userAuth 
+
+
+
 -- | Turn a 'Response' into some sort of hopefully useful error message
 -- if it wasn't successful. 
 displayResponse :: Response -> Either String ()
@@ -40,6 +48,23 @@ displayResponse resp = runExcept $ do
        throwE $ "Request failed, status message was: "  ++ unpack mesg ++ 
                 ", server response body was:\n" ++ show body
   return ()
+
+displayResponse2 :: Response -> Either String String
+displayResponse2 resp = runExcept $ do
+  let (Response code mesg ctype body) = resp
+      codeIsBad = code < 200 || code >= 300
+  when (codeIsBad && ("text/html" `BS.isPrefixOf` ctype)) $ 
+       throwE $ "Request failed, status message was: "  ++ unpack mesg ++ 
+                ", probable body is:\n" ++ probableBody body
+  when (codeIsBad && ("text/plain" `BS.isPrefixOf` ctype)) $ 
+       throwE $ "Request failed, status message was: "  ++ unpack mesg ++ 
+                ", body is:\n" ++ unpack body
+  when codeIsBad $
+       throwE $ "Request failed, status message was: "  ++ unpack mesg ++ 
+                ", server response body was:\n" ++ show body
+  return $ unwords ["Request succeeded with status code", show code
+                    , "status message:", unpack mesg, "body:", show body]
+
 
 -- | try and grab what's probably the body of an html page &
 -- extract the text. Our rule of thumb is, it's the bigger of the set of tags
