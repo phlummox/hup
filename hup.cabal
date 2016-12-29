@@ -13,7 +13,7 @@ maintainer:          phlummox2@gmail.com
 copyright:           phlummox 2016, others where indicated
 category:            Distribution, Web, Documentation  
 build-type:          Simple
-tested-with:         GHC == 8.0.1 
+--tested-with:         GHC == 8.0.1, GHC == 7.190.3 
 cabal-version:       >=1.10
 extra-source-files:  README.md, stack.yaml 
 
@@ -30,8 +30,8 @@ library
     , bytestring
     , directory
     , filepath
-    , http-client 
-    , http-client-tls
+    , http-client >= 0.5.0
+    , http-client-tls >= 0.3.0
     , http-types
     , mtl
     , split

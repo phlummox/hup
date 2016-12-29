@@ -68,8 +68,8 @@ defaultOptions mAuth =
   where
     modify :: Request -> Request
     modify x = x {
-          checkStatus    = \_ _ _ -> Nothing
-        , requestHeaders = ("User-Agent", "haskell hup-0.1.0.0")
+          --checkResponse    = \_ _ _ -> Nothing
+          requestHeaders = ("User-Agent", "haskell hup-0.1.0.0")
                            : ("Accept",   "text/plain")
                            : requestHeaders x
         }

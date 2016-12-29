@@ -9,7 +9,9 @@ packages:
 #      commit:  39e08514ad470c48c82cb42ef3987455c81727de
 #   extra-dep: true
 
-extra-deps: []
+extra-deps:  
+- http-client-0.5.5
+- http-client-tls-0.3.3
 
 flags: {}
 

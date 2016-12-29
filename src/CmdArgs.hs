@@ -1,7 +1,7 @@
 
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# OPTIONS_GHC -fno-cse #-}
-{-# OPTIONS_GHC -Wno-missing-fields #-}
+{-# OPTIONS_GHC -fno-warn-missing-fields #-}
 
 module CmdArgs where
 
