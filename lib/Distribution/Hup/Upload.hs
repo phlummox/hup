@@ -16,26 +16,33 @@ module Distribution.Hup.Upload (
 )
 where
 
-import Control.Exception (SomeException(..))
-import Control.Lens 
-import Data.List                  (dropWhileEnd)
-import Data.ByteString.Char8  (pack, unpack, putStrLn)
-import qualified Data.ByteString.Char8 as C8
-import qualified Data.ByteString.Lazy.Char8 as LC8
-import qualified Data.ByteString.Lazy   as BS 
-import Data.ByteString.Lazy   ( ByteString(..))
-import Data.Monoid            ( (<>) )
-import Network.Wreq as W hiding (Response, statusCode) 
-import qualified Network.Wreq as W 
-import Network.Wreq.Types     hiding (auth,checkStatus,responseBody)
+--import Control.Lens 
+import Data.List                        (dropWhileEnd)
+import Data.Maybe                       (fromJust)
+import Data.ByteString.Char8            (pack,unpack,putStrLn,ByteString(..) )
+import qualified Data.ByteString.Lazy as LBS 
+import qualified Data.ByteString.Lazy as L ( ByteString(..))
+import Data.Monoid                      ( (<>) )
+
+import qualified Network.HTTP.Client 
+import Network.HTTP.Client as C hiding  (Response, statusCode)
+import Network.HTTP.Client.TLS          (tlsManagerSettings)
+import qualified Network.HTTP.Types as T             
+import Network.HTTP.Client.MultipartFormData (formDataBody,partFileSource)
 
 import Distribution.Hup.Types 
-  -- IsCandidate(..), IsDocumentation(..), Package(..)
-import Distribution.Hup.Parse -- takeWhileEnd
+-- for re-export
 
--- | Alias for <https://hackage.haskell.org/package/wreq wreq's>
--- 'Network.Wreq.Response' type.
-type WResponse = W.Response
+-- | Alias for <https://hackage.haskell.org/package/http-client http-client's>
+-- 'Network.HTTP.Client.Response' type.
+type WResponse = Network.HTTP.Client.Response
+
+data Auth = Auth {  authUser     :: ByteString
+                  , authPassword :: ByteString }
+  deriving (Eq, Show)
+
+data Options = Options (Request -> Request)
+--  deriving Show
 
 
 -- | Bundle together information useful for an upload.
@@ -53,20 +60,28 @@ data Upload =
 -- and we allow non-success statuses to still return normally
 -- (rather than throwing an exception)
 defaultOptions :: Maybe Auth -> Options
-defaultOptions maybeAuth = defaults 
-                          & header "Accept" .~ ["text/plain"] 
-                          & auth .~ maybeAuth
-                          & checkStatus .~ (Just myHandler)
-  where 
-    --myHandler :: Status -> ResponseHeaders -> CookieJar -> Maybe SomeException
-    myHandler :: Status -> t1 -> t2 -> Maybe SomeException
-    myHandler status headers jar = Nothing 
+defaultOptions mAuth = 
+  case mAuth of
+    Nothing -> Options id
+    Just (Auth user pass) -> Options $ applyBasicAuth user pass
+
+  where
+    modify :: Request -> Request
+    modify x = x {
+          checkStatus    = \_ _ _ -> Nothing
+        , requestHeaders = ("User-Agent", "haskell hup-0.1.0.0")
+                           : ("Accept",   "text/plain")
+                           : requestHeaders x
+        }
+
+
 
 -- | pack a name and password into an 'Auth' structure
 --
 -- >>> mkAuth "myname" "mypassword"
+mkAuth :: String -> String -> Maybe Auth
 mkAuth name password =
-    Just $ BasicAuth (pack name) (pack password)
+    Just $ Auth (pack name) (pack password)
 
 -- | work out what URL to upload a .tgz file to. 
 -- @getUploadUrl server upload@ returns a URL.
@@ -81,8 +96,8 @@ getUploadUrl server upl  =
 --  https://github.com/snoyberg/yackage/blob/master/yackage-upload.hs 
    let 
        -- we are permissive, and drop any extra trailing slashes on server.
-       serverUrl = dropWhileEnd (=='/') $ server 
-       (Upload (Package pkgName pkgVer) filePath uploadType pkgType ) = upl
+       serverUrl = dropWhileEnd (=='/') server 
+       (Upload (Package pkgName pkgVer) _filePath uploadType pkgType ) = upl
    in case uploadType of
        IsPackage -> case pkgType of
          NormalPkg       -> serverUrl <>"/packages/"   
@@ -99,8 +114,8 @@ getUploadUrl server upl  =
 -- packed into @upl@ to the server at @serverUrl@, using
 -- the credentials in @userAuth@.
 upload
-  :: String -> Upload -> Maybe Auth -> IO (WResponse ByteString)
-upload serverUrl upl userAuth = 
+  :: String -> Upload -> Maybe Auth -> IO (WResponse L.ByteString)
+upload serverUrl upl userAuth =
 -- TODO:
 -- handle Yackage as well?
 --  https://github.com/snoyberg/yackage/blob/master/yackage-upload.hs 
@@ -120,18 +135,19 @@ upload serverUrl upl userAuth =
 data Response = 
   Response {
       statusCode   :: Int
-    , message      :: ByteString
-    , contentType  :: ByteString
-    , responseBody :: ByteString  
+    , message      :: L.ByteString
+    , contentType  :: L.ByteString
+    , responseBody :: L.ByteString  
   }
 
 -- | adapt wreq's 'Network.Wreq.Response' type into a 'Response'
-mkResponse :: WResponse ByteString -> Response
-mkResponse resp = 
-  let code  = resp ^. responseStatus ^. W.statusCode
-      mesg  = BS.fromStrict $ resp ^. responseStatus ^. statusMessage
-      ctype = BS.fromStrict $ resp ^. responseHeader "Content-Type"
-      body  = resp ^. W.responseBody
+mkResponse :: WResponse L.ByteString -> Response
+mkResponse resp =  
+  let   code  = (T.statusCode . responseStatus) resp
+        mesg  = LBS.fromStrict $ (T.statusMessage . responseStatus) resp
+        ctype = LBS.fromStrict $ fromJust $ lookup "Content-Type" $ 
+                                responseHeaders resp
+        body  = C.responseBody resp
   in Response code mesg ctype body
 
 
@@ -141,10 +157,13 @@ mkResponse resp =
 -- by @fileName@ to the URL at @url@, using the user authentication
 -- @userAuth@.
 postPkg
-  :: String -> FilePath -> Maybe Auth -> IO (WResponse ByteString)
-postPkg url fileName userAuth = 
-  let opts = defaultOptions userAuth 
-  in  postWith opts url (partFile "package" fileName)
+  :: String -> FilePath -> Maybe Auth -> IO (WResponse L.ByteString)
+postPkg url fileName userAuth = do
+  let (Options opt) = defaultOptions userAuth
+      addBody = formDataBody [partFileSource "package" fileName] 
+  req <- opt <$> (addBody  =<< parseRequest url)
+  man <- newManager tlsManagerSettings
+  httpLbs req man
 
 
 -- | Do a @PUT@ request to upload package documentation.
@@ -154,16 +173,26 @@ postPkg url fileName userAuth =
 -- @userAuth@.
 putDocs
   :: String
-     -> FilePath -> Maybe Auth -> IO (WResponse ByteString)
-putDocs url fileName userAuth = do 
-  let opts = defaultOptions userAuth 
-              & header "Content-Type" .~ ["application/x-tar"] 
-              & header "Content-Encoding" .~ ["gzip"] 
-  conts <- BS.readFile fileName 
-  putWith opts url conts 
+     -> FilePath -> Maybe Auth -> IO (WResponse L.ByteString)
+putDocs url fileName userAuth = do
+  conts <- LBS.readFile fileName 
+  -- build up request
+  let (Options opt) = defaultOptions userAuth
+      addMore x = x {
+          method         = "PUT"
+        , requestHeaders = ("Content-Type",       "application/x-tar")
+                           : ("Content-Encoding", "gzip")
+                           : requestHeaders x
+        , requestBody    = RequestBodyLBS conts
+        }
+  req <- (addMore . opt) <$> parseRequest url
+  man <- newManager tlsManagerSettings
+  httpLbs req man 
 
 
-testUpload :: IO (WResponse ByteString)
+
+
+testUpload :: IO (WResponse L.ByteString)
 testUpload = do
   let
     myServer   = "http://localhost:8080" 
@@ -171,14 +200,13 @@ testUpload = do
     myPassword = "tmp"
     pkgName    = "silly"
     pkgVer     = "0.1.0.0"
-    --fileName   = pkgName <> "-" <> pkgVer <> ".tar.gz"
-    fileName   = "../../silly-0.1.0.0-docs.tar.gz"
-    --pkgType    = NormalPkg
-    pkgType    = CandidatePkg
-    --uploadType = IsPackage 
-    uploadType = IsDocumentation 
+    fileName   = pkgName <> "-" <> pkgVer <> ".tar.gz"
+    pkgType    = NormalPkg
+--    pkgType    = CandidatePkg
+    uploadType = IsPackage 
+--    uploadType = IsDocumentation 
     upl = Upload (Package pkgName pkgVer) fileName  uploadType pkgType 
-    auth = Just $ BasicAuth (pack myUser) (pack myPassword)
+    auth = mkAuth myUser myPassword
   upload myServer upl auth
 
 

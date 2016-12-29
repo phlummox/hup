@@ -37,7 +37,9 @@ import Distribution.Hup           ( Package(..),IsDocumentation(..)
                                   , getUploadUrl)
 import Types                      (Server(..))
 import CmdArgs                    (HupCommands(..), isUpload, processArgs)
-import Upload                     (doUpload, doUpload2)
+import SanityCheck                (sanity)
+import Upload                     (doUpload)
+
 
 
 -- | just a convenience alias, short for @'MonadIO' m, 'MonadSh' m,
@@ -219,20 +221,14 @@ checkPrereqs = do
 -- in some cases?
 uploadTgz :: 
     (MonadSh m, MonadIO m, MonadReader HupCommands m) =>
-    String -> IsDocumentation -> Text -> MonadDone m ()
-uploadTgz serverUrl expectedType desc = do 
+    IsDocumentation -> Text -> MonadDone m ()
+uploadTgz expectedType desc = do 
   hc <- ask
-  let fileName = file hc 
-      fileName' = fromString fileName
+  let fileName   = file hc 
       fileName'' = T.pack fileName
-      candType = isCand hc 
-  -- check file actually exists & is regular (not directory)
-  whenM (lift $ not `liftM` test_e fileName') $ 
-    lift $ terror $ T.pack $ unwords ["file", fileName, "doesn't exist"]
-  fileReg <- lift $ test_f $ fromString fileName
-  when (not fileReg) $ 
-    lift $ terror $ T.pack $ unwords ["file", fileName, "isn't a readable file"]
-
+      candType   = isCand hc 
+      serverUrl  = server hc
+      verb       = verbose hc
   (upType, Package pkg ver) <- let parsed = parseTgzFilename' fileName
                                in either (lift . terror) return parsed 
   when (upType /= expectedType) $
@@ -242,12 +238,15 @@ uploadTgz serverUrl expectedType desc = do
   auth <- lift $ getAuth hc
   let url = getUploadUrl serverUrl upload
   lift $ echo $ "uploading to " <> T.pack url
-  serverResponse <- liftIO $ doUpload2 serverUrl upload auth
+  serverResponse <- liftIO $ doUpload serverUrl upload auth
+  let displayedMesg msg = "Uploaded successfully" <>
+                            (if verb
+                            then T.pack msg
+                            else "")
   case serverResponse of 
     Left err -> do lift $ echo $ "Error from server:\n" <> T.pack err
                    throwE Done 
-    Right msg  -> lift $ do echo "Uploaded successfully"
-                            echo $ "mesg was" <> T.pack msg
+    Right msg  -> lift $ echo $ displayedMesg msg
 
 
 
@@ -267,9 +266,9 @@ mainSh =  do
       let packageName = extractCabal "name" cabalConts
           packageVer  = extractCabal "version" cabalConts 
       case hc of
-        Packup {}   -> do uploadTgz (server hc) IsPackage "package"  
+        Packup {}   -> do uploadTgz IsPackage "package"  
                           throwE Done
-        Docup  {}   -> do uploadTgz (server hc) IsDocumentation "documentation"
+        Docup  {}   -> do uploadTgz IsDocumentation "documentation"
                           throwE Done
         _           -> return () -- i.e. carry on.
       -- if still here, we've been asked to do a build.
@@ -283,7 +282,7 @@ mainSh =  do
       auth     <- lift $ getAuth hc
       let url = getUploadUrl (server hc) uploadable
       lift $ echo $ "uploading to " <> T.pack url
-      response <- liftIO $ doUpload2 (server hc) uploadable auth
+      response <- liftIO $ doUpload (server hc) uploadable auth
       case response of 
         Left err -> do lift $ echo $ "Error from server:\n'" <> T.pack err
                        throwE Done 
@@ -295,7 +294,7 @@ mainSh =  do
 main :: IO ()
 main = do
   hSetBuffering stdout LineBuffering
-  hupCommand <- processArgs
+  hupCommand <- sanity =<< processArgs
   let verbosify = if verbose hupCommand
                   then verbosely
                   else id

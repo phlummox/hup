@@ -30,11 +30,12 @@ library
     , bytestring
     , directory
     , filepath
-    , lens
+    , http-client 
+    , http-client-tls
+    , http-types
     , mtl
     , split
     , tar
-    , wreq
     , zlib
   default-language:    Haskell2010
 
@@ -55,6 +56,7 @@ executable hup
     , CmdArgs
     , CmdArgs.PatchHelp
     , DefaultServerUrl
+    , SanityCheck
     , Upload
   if flag(PatchHelpMessage)
     other-modules: CmdArgs.PatchHelp

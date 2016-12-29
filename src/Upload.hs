@@ -4,7 +4,6 @@
 
 module Upload (
   doUpload
-  ,doUpload2
 ) where
 
 import Control.Monad                      
@@ -21,49 +20,41 @@ import Distribution.Hup.Upload            (Upload(..), Response(..), Auth(..)
 import Distribution.Hup.Parse             (rstrip, lstrip,takeWhileEnd ) 
 
 -- | do an upload.
-doUpload :: String -> Upload -> Maybe Auth -> IO (Either String ())
+doUpload :: String -> Upload -> Maybe Auth -> IO (Either String String)
 doUpload server upl userAuth = 
   (displayResponse . mkResponse)  `liftM` upload server upl userAuth 
-
--- | do an upload.
-doUpload2 :: String -> Upload -> Maybe Auth -> IO (Either String String)
-doUpload2 server upl userAuth = 
-  (displayResponse2 . mkResponse)  `liftM` upload server upl userAuth 
 
 
 
 -- | Turn a 'Response' into some sort of hopefully useful error message
 -- if it wasn't successful. 
-displayResponse :: Response -> Either String ()
+--
+-- TODO: give option of displaying successfully returned html,
+-- if verbose, perhaps
+displayResponse :: Response -> Either String String
 displayResponse resp = runExcept $ do
   let (Response code mesg ctype body) = resp
       codeIsBad = code < 200 || code >= 300
-  when (codeIsBad && ("text/html" `BS.isPrefixOf` ctype)) $ 
-       throwE $ "Request failed, status message was: "  ++ unpack mesg ++ 
-                ", probable body is:\n" ++ probableBody body
-  when (codeIsBad && ("text/plain" `BS.isPrefixOf` ctype)) $ 
-       throwE $ "Request failed, status message was: "  ++ unpack mesg ++ 
-                ", body is:\n" ++ unpack body
-  when codeIsBad $
-       throwE $ "Request failed, status message was: "  ++ unpack mesg ++ 
-                ", server response body was:\n" ++ show body
-  return ()
-
-displayResponse2 :: Response -> Either String String
-displayResponse2 resp = runExcept $ do
-  let (Response code mesg ctype body) = resp
-      codeIsBad = code < 200 || code >= 300
-  when (codeIsBad && ("text/html" `BS.isPrefixOf` ctype)) $ 
-       throwE $ "Request failed, status message was: "  ++ unpack mesg ++ 
-                ", probable body is:\n" ++ probableBody body
-  when (codeIsBad && ("text/plain" `BS.isPrefixOf` ctype)) $ 
-       throwE $ "Request failed, status message was: "  ++ unpack mesg ++ 
-                ", body is:\n" ++ unpack body
-  when codeIsBad $
-       throwE $ "Request failed, status message was: "  ++ unpack mesg ++ 
-                ", server response body was:\n" ++ show body
+      bodyMesg = case () of 
+        _ | "text/html" `BS.isPrefixOf` ctype  -> unwords ["probable html body"
+                                                  ,"is:\n", probableBody body]
+          | "text/plain" `BS.isPrefixOf` ctype -> unwords ["text body is:\n"
+                                                  , unpack body]
+          | otherwise                          -> unwords ["body was:\n"
+                                                  , show body]
+  when codeIsBad $ 
+       throwE $ "Request failed, status code was " ++ show code 
+          ++ "status message was: "  ++ unpack mesg  
+          ++ ", " ++ bodyMesg 
+  -- else code is good ...
   return $ unwords ["Request succeeded with status code", show code
-                    , "status message:", unpack mesg, "body:", show body]
+                    , "status message:", unpack mesg] -- , bodyMesg]
+
+-- | drop blank lines, and collapse spaces within a line
+collapseWhitespace s =
+  let ls = lines s
+      wordsAndBack = unwords . words
+  in unlines $ filter (not . null) $ map wordsAndBack ls
 
 
 -- | try and grab what's probably the body of an html page &
@@ -87,7 +78,9 @@ probableBody bod =
       notHeaderBits = toString $ tail $ takeWhileEnd notHeader parsedBod
       possBodyBits = toString $ dropWhile (~/= bodyTag) parsedBod
 
-  in maximumBy (comparing length) [notHeaderBits, possBodyBits]
+      probBod = maximumBy (comparing length) [notHeaderBits, possBodyBits]
+
+  in collapseWhitespace probBod
 
 
 

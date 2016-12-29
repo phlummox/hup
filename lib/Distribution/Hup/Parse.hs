@@ -20,7 +20,7 @@ import Data.List.Split            (splitOn)
 import Data.Maybe                 (isNothing, isJust, fromJust, listToMaybe)
 import Data.String
 import System.Directory           (getDirectoryContents)
-import System.FilePath            (splitExtension, takeExtension)
+import System.FilePath            (splitExtension, splitFileName, takeExtension)
 
 import Distribution.Hup.Types     (IsCandidate(..), IsDocumentation(..) 
                                   ,Package(..) )
@@ -107,6 +107,7 @@ parseTgzFilename f = do
   ext `shouldBe` ".gz"
   (base, ext) <- return $ splitExtension base 
   ext `shouldBe` ".tar"
+  base        <- return $ snd $ splitFileName base
   let isDocco = if "-docs" `isSuffixOf` base
                 then IsDocumentation 
                 else IsPackage
