@@ -15,7 +15,6 @@ import Data.Maybe                             (fromJust)
 import qualified Network.Socket as Soc        (Socket, close)
 import Network.Wai.Handler.Warp               (Port, defaultSettings
                                               ,runSettingsSocket)
-
 import Network.Wai.Parse as Parse             (FileInfo(..))
 import Web.Frank                              (post, put)
 import Web.Simple                             (Application, ControllerT
@@ -99,7 +98,7 @@ shutdownServer :: (Port, Soc.Socket, ThreadId) -> IO ()
 shutdownServer (_port, sock, _tid) = 
   Soc.close sock
 
-
+#if 1
 spec :: Spec
 spec = 
   beforeAll startServer $ afterAll shutdownServer $ 
@@ -111,10 +110,13 @@ spec =
       context "when given a bad URL" $ 
         it "should not throw an exception" $ \(port, sock, tid) -> 
           badUrlReturns' port 
+#else
+spec :: Spec
+spec = 
+    describe "bogus" $ do
+      context "when a thing happens" $ 
+        it "should do the thing" $
+          3 `shouldBe` (1 + 2) 
 
 
-
-
-
-
-
+#endif
