@@ -19,7 +19,7 @@ script:
 - cabal configure --enable-tests --enable-benchmarks -v2
 #- echo `ls`
 - cabal build
-#- cabal test
+- cabal test
 - cabal check
 # check that the generated source-distribution can be built & installed
 - cabal sdist
