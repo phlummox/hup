@@ -18,7 +18,7 @@ module Distribution.Hup.Upload (
 )
 where
 
---import Control.Lens 
+import Control.Monad
 import Data.List                        (dropWhileEnd)
 import Data.Maybe                       (fromJust)
 import Data.ByteString.Char8            (pack,unpack,putStrLn,ByteString(..) )
@@ -47,6 +47,19 @@ import Test.QuickCheck.Monadic      (run, assert, monadicIO)
 import Distribution.Hup.Parse       (arbUpload)
 
 #endif
+
+#if MIN_VERSION_http_client(0,4,30)
+--parseRequest :: MonadThrow m => String -> m Request
+parseRequest = C.parseRequest
+#else
+
+--parseRequest :: MonadThrow m => String -> m Request
+parseRequest = 
+    liftM noThrow . C.parseUrl
+  where
+    noThrow req = req { C.checkStatus = \_ _ _ -> Nothing }
+#endif
+
 
 
 -- | Alias for <https://hackage.haskell.org/package/http-client http-client's>
@@ -197,7 +210,7 @@ postPkg
 postPkg url fileName userAuth = do
   let (Options opt) = defaultOptions userAuth
       addBody = formDataBody [partFileSource "package" fileName] 
-  opt <$> (addBody  =<< C.parseRequest url)
+  opt <$> (addBody  =<< parseRequest url)
 
 
 
@@ -218,7 +231,7 @@ putDocs url fileName userAuth = do
                            : requestHeaders x
         , requestBody    = RequestBodyLBS conts
         }
-  (addMore . opt) <$> C.parseRequest url
+  (addMore . opt) <$> parseRequest url
 
 
 #ifdef TESTS

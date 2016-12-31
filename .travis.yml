@@ -10,6 +10,8 @@ before_install:
 - sudo apt-get install ghc-8.0.1
 - sudo apt-get install cabal-install-1.24
 - export PATH=/opt/cabal/1.24/bin:/opt/ghc/8.0.1/bin:$PATH
+- ls -al ~/.cabal
+- rm -rf ~/.cabal
 - cabal update
 
 install:
@@ -20,7 +22,7 @@ script:
 #- echo `ls`
 - cabal build
 - cabal test --show-details=always
-- cat dist/test/hup-*-hup-spec.log
+#- cat dist/test/hup-*-hup-spec.log
 - cabal check
 # check that the generated source-distribution can be built & installed
 - cabal sdist

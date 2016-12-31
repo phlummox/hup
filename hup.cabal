@@ -33,16 +33,12 @@ library
     , Distribution.Hup.Types
     , Distribution.Hup.Upload
   build-depends:       
-      base 
--- >= 4.7 && < 5
+      base >= 4.7 && < 5
     , bytestring
     , directory
     , filepath
     , http-client
--- < 0.5.0 
-    -- >= 0.5.0
     , http-client-tls 
-    -- >= 0.3.0
     , http-types
     , mtl
     , split
@@ -87,8 +83,7 @@ executable hup
     , bytestring
     , directory 
     , mtl
-    , shelly 
--- >= 1.6.5
+    , shelly >= 1.6.5
     -- shelly - higher possibly needed?
     , tagsoup
     , text
@@ -115,6 +110,7 @@ test-suite hup-spec
       , network
       , simple 
       -- >= 0.8.0
+      , transformers
       , wai
       , wai-extra
       , warp

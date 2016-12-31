@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE CPP #-}
 
 module Distribution.Hup.UploadSpec where
 
@@ -13,7 +14,8 @@ import Data.ByteString.Lazy.Char8 as LBS      (pack)
 import Data.Maybe                             (fromJust)
 import qualified Network.Socket as Soc        (Socket, close)
 import Network.Wai.Handler.Warp               (Port, defaultSettings
-                                              ,openFreePort, runSettingsSocket)
+                                              ,runSettingsSocket)
+
 import Network.Wai.Parse as Parse             (FileInfo(..))
 import Web.Frank                              (post, put)
 import Web.Simple                             (Application, ControllerT
@@ -23,6 +25,22 @@ import Web.Simple                             (Application, ControllerT
 import Distribution.Hup.Upload  
 import Distribution.Hup.Parse 
 
+#if MIN_VERSION_warp(3,2,4)
+import qualified Network.Wai.Handler.Warp as Warp  (openFreePort)
+
+openFreePort = Warp.openFreePort
+#else
+import Network.Socket
+
+openFreePort :: IO (Port, Soc.Socket)
+openFreePort = do 
+  s <- socket AF_INET Stream defaultProtocol
+  localhost <- inet_addr "127.0.0.1"
+  bind s (SockAddrInet aNY_PORT localhost)
+  listen s 1
+  port <- socketPort s
+  return (fromIntegral port, s)
+#endif
 
 -- `main` is here so that this module can be run from GHCi on its own.  It is
 -- not needed for automatic spec discovery.

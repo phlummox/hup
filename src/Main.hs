@@ -10,6 +10,7 @@
 module Main where
 
 import Prelude hiding (FilePath)
+import qualified Prelude
 
 import Control.Monad.IO.Class     ( MonadIO(..) )
 import Control.Monad.Reader       (MonadReader(..), runReaderT, liftM)
@@ -40,7 +41,7 @@ import Upload                     (doUpload)
 
 #if MIN_VERSION_directory(1,2,5)
 #else
-listDirectory :: FilePath -> IO [FilePath]
+listDirectory :: Prelude.FilePath -> IO [Prelude.FilePath]
 listDirectory path =
   (filter f) <$> (getDirectoryContents path)
   where f filename = filename /= "." && filename /= ".."
