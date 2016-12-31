@@ -16,10 +16,11 @@ install:
 - cabal install --only-dependencies --enable-tests --enable-benchmarks --force-reinstalls
 
 script:
-- cabal configure --enable-tests --enable-benchmarks -v2
+- cabal configure --enable-tests --enable-benchmarks -v2 --flags="enabletests"
 #- echo `ls`
 - cabal build
-- cabal test
+- cabal test --show-details=always
+- cat dist/test/hup-*-hup-spec.log
 - cabal check
 # check that the generated source-distribution can be built & installed
 - cabal sdist
