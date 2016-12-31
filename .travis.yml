@@ -13,7 +13,7 @@ before_install:
 - cabal update
 
 install:
-- cabal install --only-dependencies --enable-tests --enable-benchmarks --flags="enabletests" --force-reinstalls
+- cabal install --only-dependencies --enable-tests --enable-benchmarks --flags="enabletests" --force-reinstalls --reorder-goals
 
 script:
 - cabal configure --enable-tests --enable-benchmarks -v2 --flags="enabletests"
