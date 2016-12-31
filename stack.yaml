@@ -13,7 +13,12 @@ extra-deps:
 - http-client-0.5.5
 - http-client-tls-0.3.3
 
-flags: {}
+# flags: {}
+
+# to enable test code:
+flags:
+  hup:
+    EnableTests: true
 
 extra-package-dbs: []
 

@@ -1,5 +1,7 @@
 
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE CPP #-}
+{-# OPTIONS_HADDOCK prune  #-}
 
 {-| 
 
@@ -20,12 +22,14 @@ where
 import Data.List                        (dropWhileEnd)
 import Data.Maybe                       (fromJust)
 import Data.ByteString.Char8            (pack,unpack,putStrLn,ByteString(..) )
-import qualified Data.ByteString.Lazy as LBS 
+import qualified Data.ByteString.Lazy.Char8 as LBS 
 import qualified Data.ByteString.Lazy as L ( ByteString(..))
 import Data.Monoid                      ( (<>) )
 
-import qualified Network.HTTP.Client 
-import Network.HTTP.Client as C hiding  (Response, statusCode)
+import qualified Network.HTTP.Client as C
+import Network.HTTP.Client              (requestHeaders, Request, RequestBody(..)
+                                        ,method, requestBody, responseHeaders
+                                        ,responseStatus)
 import Network.HTTP.Client.TLS          (tlsManagerSettings)
 import qualified Network.HTTP.Types as T             
 import Network.HTTP.Client.MultipartFormData (formDataBody,partFileSource)
@@ -33,25 +37,35 @@ import Network.HTTP.Client.MultipartFormData (formDataBody,partFileSource)
 import Distribution.Hup.Types 
 -- for re-export
 
+#ifdef TESTS
+
+import System.FilePath              ( (</>) )
+import System.IO.Temp               (withSystemTempDirectory)
+import Test.QuickCheck
+import Test.QuickCheck.Monadic      (run, assert, monadicIO)
+
+import Distribution.Hup.Parse       (arbUpload)
+
+#endif
+
+
 -- | Alias for <https://hackage.haskell.org/package/http-client http-client's>
 -- 'Network.HTTP.Client.Response' type.
-type WResponse = Network.HTTP.Client.Response
+type HResponse = C.Response
 
+-- | Username and password for HTTP basic access authentication.
 data Auth = Auth {  authUser     :: ByteString
                   , authPassword :: ByteString }
   deriving (Eq, Show)
 
+-- | Options that can be applied to a Request.
+-- (e.g. to add standard headers, etc.)
+--
+-- Can just use 'defaultOptions'.
 data Options = Options (Request -> Request)
 --  deriving Show
 
 
--- | Bundle together information useful for an upload.
-data Upload = 
-    Upload { package       :: Package -- ^ package name & version
-            ,fileToUpload  :: FilePath        -- ^ file being uploaded
-            ,uploadType    :: IsDocumentation -- ^ docco or package 
-            ,isCandidate   :: IsCandidate    -- ^ candidate or not
-           } deriving (Show, Eq)
 
 -- | returns default options to use with
 -- a request.
@@ -63,12 +77,11 @@ defaultOptions :: Maybe Auth -> Options
 defaultOptions mAuth = 
   case mAuth of
     Nothing -> Options id
-    Just (Auth user pass) -> Options $ applyBasicAuth user pass
+    Just (Auth user pass) -> Options $ C.applyBasicAuth user pass
 
   where
     modify :: Request -> Request
     modify x = x {
-          --checkResponse    = \_ _ _ -> Nothing
           requestHeaders = ("User-Agent", "haskell hup-0.1.0.0")
                            : ("Accept",   "text/plain")
                            : requestHeaders x
@@ -79,6 +92,7 @@ defaultOptions mAuth =
 -- | pack a name and password into an 'Auth' structure
 --
 -- >>> mkAuth "myname" "mypassword"
+-- Just (Auth {authUser = "myname", authPassword = "mypassword"}) 
 mkAuth :: String -> String -> Maybe Auth
 mkAuth name password =
     Just $ Auth (pack name) (pack password)
@@ -86,7 +100,7 @@ mkAuth name password =
 -- | work out what URL to upload a .tgz file to. 
 -- @getUploadUrl server upload@ returns a URL.
 --
--- >>> getUploadUrl "http://localhost:8080/" $ Upload (Package "foo" "0.1.0.0") "./hup-0.1.0.0.tar.gz" IsDocumentation CandidatePkg
+-- >>> getUploadUrl "http://localhost:8080/" $ Upload (Package "foo" "0.1.0.0") "./foo-0.1.0.0.tar.gz" IsDocumentation CandidatePkg
 -- "http://localhost:8080/package/foo-0.1.0.0/candidate/docs"
 getUploadUrl
   :: String -> Upload -> String
@@ -110,12 +124,18 @@ getUploadUrl server upl  =
                                       <> "-" <> pkgVer 
                                       <> "/candidate/docs"
 
--- | @upload serverUrl upl userAuth@ - upload some package (details
--- packed into @upl@ to the server at @serverUrl@, using
+-- | @buildRequest serverUrl upl userAuth@ - create an HTTP request
+-- for uploading some package (details
+-- packed into @upl@) to the server at @serverUrl@, using
 -- the credentials in @userAuth@.
-upload
-  :: String -> Upload -> Maybe Auth -> IO (WResponse L.ByteString)
-upload serverUrl upl userAuth =
+--
+-- e.g. usage:
+-- > let p = Package "foo" "0.1.0.0"
+-- > let u = Upload p "./foo-0.1.0.0.tar.gz" IsDocumentation CandidatePkg
+-- > req <- buildRequest "http://localhost:8080/" u (mkAuth "tmp" "tmp")
+-- > sendRequest req
+buildRequest :: String -> Upload -> Maybe Auth -> IO Request
+buildRequest serverUrl upl userAuth  =
 -- TODO:
 -- handle Yackage as well?
 --  https://github.com/snoyberg/yackage/blob/master/yackage-upload.hs 
@@ -128,10 +148,23 @@ upload serverUrl upl userAuth =
           let url = getUploadUrl serverUrl upl
           in  putDocs url filePath userAuth
 
+-- | Send an HTTP request and get the response.
+-- 
+-- May throw an exception on network errors etc., but not on
+-- a non-2XX response (e.g. a 404).
+sendRequest
+  :: Request -> IO Response
+sendRequest req = do
+  man <- C.newManager tlsManagerSettings
+  mkResponse <$> C.httpLbs req man
+
+
 
 -- | Relevant bits of server response, packed into a record
--- for those who don't want to deal with wreq's 
--- 'Network.Wreq.Response' type.
+-- for those who don't want to deal with http-clients's 
+-- 'Network.HTTP.Client.Response' type.
+--
+-- See 'mkResponse'.
 data Response = 
   Response {
       statusCode   :: Int
@@ -139,9 +172,11 @@ data Response =
     , contentType  :: L.ByteString
     , responseBody :: L.ByteString  
   }
+  deriving Show
 
--- | adapt wreq's 'Network.Wreq.Response' type into a 'Response'
-mkResponse :: WResponse L.ByteString -> Response
+-- adapt http-client 'Network.HTTP.Client.Response' type into a 
+-- 'Response'
+mkResponse :: HResponse L.ByteString -> Response
 mkResponse resp =  
   let   code  = (T.statusCode . responseStatus) resp
         mesg  = LBS.fromStrict $ (T.statusMessage . responseStatus) resp
@@ -151,29 +186,26 @@ mkResponse resp =
   in Response code mesg ctype body
 
 
--- | Do a @POST@ request to upload a package.
+-- | Construct a @POST@ request for uploading a package.
 --
--- @postPkg url fileName userAuth@ will try to upload the file given
--- by @fileName@ to the URL at @url@, using the user authentication
+-- @postPkg url fileName userAuth@ creates a request which will upload the file
+-- given by @fileName@ to the URL at @url@, using the user authentication
 -- @userAuth@.
 postPkg
-  :: String -> FilePath -> Maybe Auth -> IO (WResponse L.ByteString)
+  :: String -> FilePath -> Maybe Auth -> IO Request
 postPkg url fileName userAuth = do
   let (Options opt) = defaultOptions userAuth
       addBody = formDataBody [partFileSource "package" fileName] 
-  req <- opt <$> (addBody  =<< parseRequest url)
-  man <- newManager tlsManagerSettings
-  httpLbs req man
+  opt <$> (addBody  =<< C.parseRequest url)
 
 
--- | Do a @PUT@ request to upload package documentation.
+
+-- | Build a @PUT@ request to upload package documentation.
 --
--- @postPkg url fileName userAuth@ will try to upload the file given
--- by @fileName@ to the URL at @url@, using the user authentication
+-- @postPkg url fileName userAuth@ creates a request which will upload the file
+-- given by @fileName@ to the URL at @url@, using the user authentication
 -- @userAuth@.
-putDocs
-  :: String
-     -> FilePath -> Maybe Auth -> IO (WResponse L.ByteString)
+putDocs :: String -> FilePath -> Maybe Auth -> IO Request
 putDocs url fileName userAuth = do
   conts <- LBS.readFile fileName 
   -- build up request
@@ -185,29 +217,52 @@ putDocs url fileName userAuth = do
                            : requestHeaders x
         , requestBody    = RequestBodyLBS conts
         }
-  req <- (addMore . opt) <$> parseRequest url
-  man <- newManager tlsManagerSettings
-  httpLbs req man 
+  (addMore . opt) <$> C.parseRequest url
 
 
+#ifdef TESTS
 
 
-testUpload :: IO (WResponse L.ByteString)
-testUpload = do
-  let
-    myServer   = "http://localhost:8080" 
-    myUser     = "tmp"
-    myPassword = "tmp"
-    pkgName    = "silly"
-    pkgVer     = "0.1.0.0"
-    fileName   = pkgName <> "-" <> pkgVer <> ".tar.gz"
-    pkgType    = NormalPkg
---    pkgType    = CandidatePkg
-    uploadType = IsPackage 
---    uploadType = IsDocumentation 
-    upl = Upload (Package pkgName pkgVer) fileName  uploadType pkgType 
-    auth = mkAuth myUser myPassword
-  upload myServer upl auth
+arbAuth =
+  mkAuth <$> arbitrary <*> arbitrary
+
+     
+
+-- | Round-trips an http request to check things seem to be going to the
+-- right URLs.
+--
+-- Doesn't check the file/body, just metadata.
+httpRoundTripsOK' :: Int -> Property
+httpRoundTripsOK' port = 
+  forAll arbUpload $ \upl ->
+    forAll arbAuth $ \auth ->
+      httpRoundTripsOK port upl auth
+
+type ParsedTgz = Either String (IsDocumentation, Package) 
+
+httpRoundTripsOK port upl auth = 
+      monadicIO $ do
+        response <- run $ withSystemTempDirectory "huptest" $ \tmpDir -> do
+          let newFile = tmpDir </> (fileToUpload upl)
+          upl <- return $ upl { fileToUpload = newFile } 
+          writeFile (tmpDir </> (fileToUpload upl)) ""
+          req <- buildRequest ("http://localhost:" ++ show port ++ "/") upl auth
+          resp <- sendRequest req
+          return resp
+        assert $ statusCode response == 200
+
+        let bod = LBS.unpack $ responseBody response
+            unserialized :: (IsDocumentation, IsCandidate, ParsedTgz)
+            unserialized@(recdIsDoc1, recdIsCand, parsedTgz) = read bod
+
+        let sentIsCand = isCandidate upl
+            sentIsDoc  = uploadType  upl
+            sentPkg    = package     upl 
+
+        assert (parsedTgz == Right (sentIsDoc, sentPkg) )
+        assert (sentIsCand == recdIsCand)
+        assert (sentIsDoc  == recdIsDoc1)
 
 
+#endif
 

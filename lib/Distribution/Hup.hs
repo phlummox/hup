@@ -26,10 +26,9 @@ module Distribution.Hup
 -- * Uploading
   , getUploadUrl
   , mkAuth
-  , mkResponse
   , postPkg
   , putDocs
-  , upload    
+  , buildRequest    
 -- * Types
   , IsCandidate(..)
   , IsDocumentation(..) 

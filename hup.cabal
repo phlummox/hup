@@ -13,9 +13,16 @@ maintainer:          phlummox2@gmail.com
 copyright:           phlummox 2016, others where indicated
 category:            Distribution, Web, Documentation  
 build-type:          Simple
---tested-with:         GHC == 8.0.1, GHC == 7.190.3 
+tested-with:         GHC == 8.0.1, GHC == 7.10.3 
 cabal-version:       >=1.10
 extra-source-files:  README.md, stack.yaml 
+
+Flag EnableTests
+  Description:
+    enable test code
+  Default:     False
+  Manual:      False
+
 
 library
   hs-source-dirs:      lib
@@ -38,6 +45,12 @@ library
     , tar
     , zlib
   default-language:    Haskell2010
+  if flag(EnableTests)
+    build-depends:
+        QuickCheck
+      , temporary
+    cpp-options:         -DTESTS
+
 
 Flag PatchHelpMessage
   Description:
@@ -76,6 +89,43 @@ executable hup
     , text
     , transformers
     , hup
+
+test-suite hup-spec
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Spec.hs
+  build-depends:
+      base
+    , hup
+    , hspec
+    , QuickCheck
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010
+  if flag(EnableTests)
+    other-modules:
+        Distribution.Hup.ParseSpec
+      , Distribution.Hup.UploadSpec
+    build-depends:
+        bytestring
+      , network
+      , simple >= 0.8.0
+      , wai
+      , wai-extra
+      , warp
+    cpp-options:         -DTESTS
+
+
+test-suite hup-doctest
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             DocTest.hs
+  build-depends:       base
+                     , hup
+                     , doctest
+                     , Glob
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010
+
 
 source-repository head
   type:     git

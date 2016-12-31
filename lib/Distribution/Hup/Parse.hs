@@ -1,4 +1,5 @@
 
+{-# LANGUAGE CPP #-}
 
 {-| 
 
@@ -14,7 +15,8 @@ module Distribution.Hup.Parse (
 import Control.Monad.Except       (MonadError(..),when)
 
 import Data.Char                  (isDigit, toLower, isSpace)
-import Data.List                  (dropWhileEnd,isSuffixOf,stripPrefix)
+import Data.List                  (dropWhileEnd,isSuffixOf,stripPrefix
+                                  ,intercalate)
 import Data.List.Split            (splitOn)
 
 import Data.Maybe                 (isNothing, isJust, fromJust, listToMaybe)
@@ -23,13 +25,26 @@ import System.Directory           (getDirectoryContents)
 import System.FilePath            (splitExtension, splitFileName, takeExtension)
 
 import Distribution.Hup.Types     (IsCandidate(..), IsDocumentation(..) 
-                                  ,Package(..) )
+                                  ,Package(..), Upload(..) )
+
+#ifdef TESTS
+
+import Test.QuickCheck
+
+#endif
+
 
 -- | strip whitespace from end
+-- 
+-- >>> rstrip "abcd \t\n\r"
+-- "abcd"
 rstrip :: String -> String
 rstrip = dropWhileEnd isSpace 
 
 -- | strip whitespace from beginning
+-- 
+-- >>> lstrip "\t\n\r   abcd"
+-- "abcd"
 lstrip :: String -> String
 lstrip = dropWhile isSpace 
 
@@ -38,10 +53,13 @@ lstrip = dropWhile isSpace
 --
 -- from NDM's extra-1.5.1 https://hackage.haskell.org/package/extra-1.5.1
 --
--- > replace "el" "_" "Hello Bella" == "H_lo B_la"
--- > replace "el" "e" "Hello"       == "Helo"
--- > replace "" "e" "Hello"         == undefined
+-- >>> replace "el" "_" "Hello Bella" == "H_lo B_la"
+-- True
+-- >>> replace "el" "e" "Hello"       == "Helo"
+-- True
+--
 -- > \xs ys -> not (null xs) ==> replace xs xs ys == ys
+-- > replace "" "e" "Hello"         == undefined
 replace :: Eq a => [a] -> [a] -> [a] -> [a]
 replace [] _ _ = error "Extra.replace, first argument cannot be empty"
 replace from to xs | Just xs <- stripPrefix from xs = to ++ replace from to xs
@@ -51,15 +69,32 @@ replace from to [] = []
 -- | Like 'Data.List.dropWhileEnd', but for 'Data.List.take'.
 --
 -- (taken from filepath-1.4.1.1)
+--
+-- >>> takeWhileEnd (< 10) [1, 2, 10, 3, 4, -3]
+-- [3,4,-3]
 takeWhileEnd :: (a -> Bool) -> [a] -> [a]
 takeWhileEnd p = reverse . takeWhile p . reverse
 
 -- | like 'Data.List.span', but from the end
+--
+-- >>> spanEnd (< 3) [4,3,2,1,4,3,2,1] 
+-- ([4,3,2,1,4,3],[2,1])
+-- >>> spanEnd (< 9) [1,2,3]
+-- ([],[1,2,3])
+-- >>> spanEnd (< 0) [1,2,3] 
+-- ([1,2,3],[])
 spanEnd :: (a -> Bool) -> [a] -> ([a], [a])
 spanEnd p xs = (dropWhileEnd p xs, takeWhileEnd p xs)
 
 
 -- | like 'Data.List.break', but from the end
+--
+-- >>> breakEnd (> 3) [4,3,2,1,4,3,2,1] 
+-- ([4,3,2,1,4],[3,2,1])
+-- >>> breakEnd (< 9) [1,2,3] 
+-- ([1,2,3],[])
+-- >>> breakEnd (> 9) [1,2,3] 
+-- ([],[1,2,3])
 breakEnd :: (a -> Bool) -> [a] -> ([a], [a])
 breakEnd p = spanEnd (not . p)
 
@@ -112,7 +147,7 @@ parseTgzFilename f = do
                 then IsDocumentation 
                 else IsPackage
   (base, isDocco) <- return $ if "-docs" `isSuffixOf` base
-                              then let base' = concat $ 
+                              then let base' = intercalate "-" $ 
                                                init $ splitOn "-" base
                                    in (base', IsDocumentation)
                               else (base, IsPackage)
@@ -128,9 +163,58 @@ parseTgzFilename f = do
     spanVersion = spanEnd (\x -> isDigit x || x == '.')
 
 -- | 'parseTgzFilename'' specialized to 'Data.Either.Either'.
+--
+-- >>> (parseTgzFilename' "foo-bar-baz-0.1.0.0.2.3.0.1.tar.gz") :: Either String (IsDocumentation, Package)
+-- Right (IsPackage,Package {packageName = "foo-bar-baz", packageVersion = "0.1.0.0.2.3.0.1"})
 parseTgzFilename'
    :: (IsString s) => 
        Prelude.FilePath -> Either s (IsDocumentation, Package)
 parseTgzFilename'  = parseTgzFilename 
+
+#ifdef TESTS
+
+arbWord = do
+  len <- choose (1, 10)
+  vectorOf len $
+      oneof [choose ('a', 'z')
+           ,choose ('A', 'Z')]
+
+arbName :: Gen String
+arbName = do
+  len <- choose (1, 4)
+  (intercalate "-") <$> vectorOf len arbWord
+
+arbVersion = do
+  numComponents <- choose (1,10)
+  numbers <- vectorOf numComponents $ getNonNegative <$> 
+                                      (arbitrary :: Gen (NonNegative Int))
+  return $ intercalate "." $ map show numbers 
+
+arbUpload = do
+  name   <- arbName
+  ver    <- arbVersion
+  isPack <- elements [IsPackage, IsDocumentation]
+  isCand <- elements [NormalPkg, CandidatePkg]
+  let pk   = Package name ver
+      file = name ++ "-" ++ ver ++ 
+                if (isPack == IsPackage) 
+                then ".tar.gz"
+                else "-docs.tar.gz"
+  return $ Upload pk file isPack isCand
+
+prop_parseTgzFilename_roundtripsOK  = 
+  forAll arbUpload $ \upl -> 
+    let 
+         parsed :: Either String (IsDocumentation, Package)  
+         parsed = (parseTgzFilename' $ fileToUpload upl )  
+
+    in case parsed of
+            Right (isDoc, Package parsedName parsedVer) -> 
+                  isDoc       == uploadType upl 
+              &&  parsedName  == (packageName    $ package upl)
+              &&  parsedVer   == (packageVersion $ package upl)
+
+#endif
+
 
 

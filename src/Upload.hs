@@ -16,13 +16,14 @@ import Data.Ord                           (comparing)
 import Text.HTML.TagSoup                  (parseTags, Tag(..),innerText, (~/=))
 
 import Distribution.Hup.Upload            (Upload(..), Response(..), Auth(..)
-                                          ,upload, mkResponse)
+                                          ,buildRequest, sendRequest)
 import Distribution.Hup.Parse             (rstrip, lstrip,takeWhileEnd ) 
 
 -- | do an upload.
 doUpload :: String -> Upload -> Maybe Auth -> IO (Either String String)
-doUpload server upl userAuth = 
-  (displayResponse . mkResponse)  `liftM` upload server upl userAuth 
+doUpload server upl userAuth = do
+  req <- buildRequest server upl userAuth
+  displayResponse `liftM` sendRequest req
 
 
 
