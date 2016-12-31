@@ -51,7 +51,7 @@ lstrip = dropWhile isSpace
 -- | Replace a subsequence everywhere it occurs. The first argument must
 --   not be the empty list.
 --
--- from NDM's extra-1.5.1 https://hackage.haskell.org/package/extra-1.5.1
+-- from NDM's <https://hackage.haskell.org/package/extra-1.5.1 extra-1.5.1>
 --
 -- >>> replace "el" "_" "Hello Bella" == "H_lo B_la"
 -- True
@@ -101,7 +101,7 @@ breakEnd p = spanEnd (not . p)
 
 -- | if there's a .cabal file in the current dir, return its file name.
 --
--- from NDM's neil-0.10, https://hackage.haskell.org/package/neil-0.10 
+-- from NDM's <https://hackage.haskell.org/package/neil-0.10 neil-0.10> 
 findCabal :: IO (Maybe Prelude.FilePath)
 findCabal = do
     x <- getDirectoryContents "."
@@ -110,7 +110,7 @@ findCabal = do
 -- | find & read contents of Cabal file from current dir, if it exists.
 -- else returns empty string.
 --
--- from NDM's neil-0.10, https://hackage.haskell.org/package/neil-0.10 
+-- from NDM's <https://hackage.haskell.org/package/neil-0.10 neil-0.10> 
 readCabal :: IO String
 readCabal = do
     file <- findCabal
@@ -124,7 +124,7 @@ readCabal = do
 --
 -- field name is case-insensitive [folded to lowercase]
 --
--- from NDM's neil-0.10, https://hackage.haskell.org/package/neil-0.10 
+-- from NDM's <https://hackage.haskell.org/package/neil-0.10 neil-0.10> 
 extractCabal :: String -> String -> String
 extractCabal find = f . words . replace ":" " : "
     where

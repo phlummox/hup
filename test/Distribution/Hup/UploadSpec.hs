@@ -20,7 +20,7 @@ import Web.Simple                             (Application, ControllerT
                                               ,Controller, controllerApp, ok
                                               ,parseForm, queryParam, respond)
 
-import Distribution.Hup.Upload                (httpRoundTripsOK')
+import Distribution.Hup.Upload  
 import Distribution.Hup.Parse 
 
 
@@ -85,10 +85,14 @@ shutdownServer (_port, sock, _tid) =
 spec :: Spec
 spec = 
   beforeAll startServer $ afterAll shutdownServer $ 
-    describe "buildRequest" $
+    describe "buildRequest" $ do
       context "when its result is fed into sendRequest" $ 
         it "should send to the right web app path" $ \(port, sock, tid) -> 
           httpRoundTripsOK' port 
+
+      context "when given a bad URL" $ 
+        it "should not throw an exception" $ \(port, sock, tid) -> 
+          badUrlReturns' port 
 
 
 

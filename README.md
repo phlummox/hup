@@ -2,8 +2,8 @@
 
 Small program for building and uploading packages and documentation
 built with `stack` to a hackage server; a Haskellified version of
-phadej's [script](https://github.com/phadej/binary-orphans/blob/master/hackage-docs.sh),
-which is a stack-enabled version of ekmett's [script](https://github.com/ekmett/lens/blob/master/scripts/hackage-docs.sh).
+[phadej's script](https://github.com/phadej/binary-orphans/blob/master/hackage-docs.sh),
+which is a stack-enabled version of [ekmett's script](https://github.com/ekmett/lens/blob/master/scripts/hackage-docs.sh).
 
 In addition to `stack`, requires that `cabal` and `haddock` are on your path.
 (If you're using stack, they're easily installed with, e.g.  `stack install
@@ -13,13 +13,6 @@ cabal-install`.)
 
 Install in the standard Haskell way: `cabal install hup`, or `stack
 install hup`.
-
-**while in hackage "candidates":** use `cabal install https://hackage.haskell.org/package/hup-0.1.0.0/candidate/hup-0.1.0.0.tar.gz'`; or:
-
-    wget https://hackage.haskell.org/package/hup-0.1.0.0/candidate/hup-0.1.0.0.tar.gz
-    tar xf hup-0.1.0.0.tar.gz
-    cd hup-0.1.0.0; stack install
-
 
 ## Usage
 

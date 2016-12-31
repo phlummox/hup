@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE CPP #-}
 
 module Main where
 
@@ -23,7 +24,7 @@ import Data.Text                  ( Text )
 import qualified Data.Text as T
 import Data.Monoid                ( (<>) )
 import Shelly.Lifted
-import System.Directory           (listDirectory)
+import System.Directory           -- (listDirectory)
 import System.IO                  (hSetBuffering, BufferMode( LineBuffering )
                                   , stdout)
 
@@ -37,7 +38,13 @@ import CmdArgs                    (HupCommands(..), isUpload, processArgs)
 import SanityCheck                (sanity)
 import Upload                     (doUpload)
 
-
+#if MIN_VERSION_directory(1,2,5)
+#else
+listDirectory :: FilePath -> IO [FilePath]
+listDirectory path =
+  (filter f) <$> (getDirectoryContents path)
+  where f filename = filename /= "." && filename /= ".."
+#endif
 
 -- | just a convenience alias, short for @'MonadIO' m, 'MonadSh' m,
 --  'MonadShControl' m
@@ -285,7 +292,7 @@ mainSh =  do
         Left err -> do lift $ echo $ "Error from server:\n'" <> T.pack err
                        throwE Done 
         Right msg -> lift $ do echo "Uploaded successfully"
-                               echo $ "mesg was" <> T.pack msg
+                               echo $ "mesg was: " <> T.pack msg
 
 
 

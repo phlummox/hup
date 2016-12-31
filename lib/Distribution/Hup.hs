@@ -29,6 +29,7 @@ module Distribution.Hup
   , postPkg
   , putDocs
   , buildRequest    
+  , sendRequest
 -- * Types
   , IsCandidate(..)
   , IsDocumentation(..) 
