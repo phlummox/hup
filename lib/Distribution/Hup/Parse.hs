@@ -19,7 +19,7 @@ import Data.List                  (dropWhileEnd,isSuffixOf,stripPrefix
                                   ,intercalate)
 import Data.List.Split            (splitOn)
 
-import Data.Maybe                 (isNothing, isJust, fromJust, listToMaybe)
+import Data.Maybe                 (listToMaybe)
 import Data.String
 import System.Directory           (getDirectoryContents)
 import System.FilePath            (splitExtension, splitFileName, takeExtension)
@@ -64,7 +64,7 @@ replace :: Eq a => [a] -> [a] -> [a] -> [a]
 replace [] _ _ = error "Extra.replace, first argument cannot be empty"
 replace from to xs | Just xs <- stripPrefix from xs = to ++ replace from to xs
 replace from to (x:xs) = x : replace from to xs
-replace from to [] = []
+replace _from _to [] = []
 
 -- | Like 'Data.List.dropWhileEnd', but for 'Data.List.take'.
 --
@@ -213,6 +213,8 @@ prop_parseTgzFilename_roundtripsOK  =
                   isDoc       == uploadType upl 
               &&  parsedName  == (packageName    $ package upl)
               &&  parsedVer   == (packageVersion $ package upl)
+            Left  msg -> 
+                  False
 
 #endif
 

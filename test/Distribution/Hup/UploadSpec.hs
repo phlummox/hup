@@ -3,7 +3,6 @@
 module Distribution.Hup.UploadSpec where
 
 import Test.Hspec
-import Test.QuickCheck
 
 import Control.Concurrent                     (forkIO, ThreadId)
 import Control.Exception                      (throwIO)
@@ -11,10 +10,9 @@ import Control.Monad
 import Control.Monad.IO.Class                 (liftIO)
 import qualified Data.ByteString.Char8 as BS
 import Data.ByteString.Lazy.Char8 as LBS      (pack)
-import Data.Maybe                             (fromJust, fromMaybe)
-import Data.Monoid                            ( (<>) )
+import Data.Maybe                             (fromJust)
 import qualified Network.Socket as Soc        (Socket, close)
-import Network.Wai.Handler.Warp               (Port(..), defaultSettings
+import Network.Wai.Handler.Warp               (Port, defaultSettings
                                               ,openFreePort, runSettingsSocket)
 import Network.Wai.Parse as Parse             (FileInfo(..))
 import Web.Frank                              (post, put)
@@ -41,10 +39,10 @@ ioAssert pred mesg =
 webApp :: Application
 webApp = controllerApp () $ do
     post "/packages/" $ do
-      (prms, files) <- parseForm
+      (_params, files) <- parseForm
       handlePost NormalPkg files
     post "/packages/candidates/" $ do
-      (prms, files) <- parseForm
+      (_params, files) <- parseForm
       handlePost CandidatePkg files
     put "/package/:pkgVer/docs" $ do
       pkgVer <- fromJust <$> queryParam "pkgVer"  
@@ -80,7 +78,7 @@ startServer = do
   return (port, sock, tid) 
 
 shutdownServer :: (Port, Soc.Socket, ThreadId) -> IO ()
-shutdownServer (port, sock, tid) = 
+shutdownServer (_port, sock, _tid) = 
   Soc.close sock
 
 

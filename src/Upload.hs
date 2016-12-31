@@ -7,10 +7,10 @@ module Upload (
 ) where
 
 import Control.Monad                      
-import Control.Monad.Trans.Except         (ExceptT(..),runExcept,throwE)
+import Control.Monad.Trans.Except         (runExcept,throwE)
 import Data.ByteString.Lazy.Char8         (unpack)
 import qualified Data.ByteString.Lazy as BS 
-import Data.ByteString.Lazy               (ByteString(..))
+import Data.ByteString.Lazy               (ByteString)
 import Data.List                          (all, maximumBy)
 import Data.Ord                           (comparing)
 import Text.HTML.TagSoup                  (parseTags, Tag(..),innerText, (~/=))
@@ -52,6 +52,7 @@ displayResponse resp = runExcept $ do
                     , "status message:", unpack mesg] -- , bodyMesg]
 
 -- | drop blank lines, and collapse spaces within a line
+collapseWhitespace :: String -> String
 collapseWhitespace s =
   let ls = lines s
       wordsAndBack = unwords . words

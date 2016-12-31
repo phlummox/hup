@@ -48,6 +48,7 @@ data HupCommands =
               , file     :: String }
       deriving (Show, Eq, Data, Typeable, Ord)
 
+isUpload :: HupCommands -> Maybe HupCommands
 isUpload Docbuild {} = Nothing
 isUpload x           = Just x 
 

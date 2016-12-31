@@ -23,7 +23,7 @@ import Data.List                        (dropWhileEnd)
 import Data.Maybe                       (fromJust)
 import Data.ByteString.Char8            (pack,unpack,putStrLn,ByteString(..) )
 import qualified Data.ByteString.Lazy.Char8 as LBS 
-import qualified Data.ByteString.Lazy as L ( ByteString(..))
+import qualified Data.ByteString.Lazy as L (ByteString)
 import Data.Monoid                      ( (<>) )
 
 import qualified Network.HTTP.Client as C
@@ -77,7 +77,7 @@ defaultOptions :: Maybe Auth -> Options
 defaultOptions mAuth = 
   case mAuth of
     Nothing -> Options id
-    Just (Auth user pass) -> Options $ C.applyBasicAuth user pass
+    Just (Auth user pass) -> Options $ modify . C.applyBasicAuth user pass
 
   where
     modify :: Request -> Request
@@ -252,8 +252,8 @@ httpRoundTripsOK port upl auth =
         assert $ statusCode response == 200
 
         let bod = LBS.unpack $ responseBody response
-            unserialized :: (IsDocumentation, IsCandidate, ParsedTgz)
-            unserialized@(recdIsDoc1, recdIsCand, parsedTgz) = read bod
+            _unserialized :: (IsDocumentation, IsCandidate, ParsedTgz)
+            _unserialized@(recdIsDoc1, recdIsCand, parsedTgz) = read bod
 
         let sentIsCand = isCandidate upl
             sentIsDoc  = uploadType  upl

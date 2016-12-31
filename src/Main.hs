@@ -9,7 +9,6 @@
 module Main where
 
 import Prelude hiding (FilePath)
-import qualified Prelude
 
 import Control.Monad.IO.Class     ( MonadIO(..) )
 import Control.Monad.Reader       (MonadReader(..), runReaderT, liftM)
@@ -18,10 +17,9 @@ import Control.Monad.Trans.Maybe  (MaybeT(..))
 import Control.Monad.Trans.Except (ExceptT(..),runExceptT,throwE)
 import Data.Char                  (isSpace, isDigit)
 import Data.Either                (either)
-import Data.IORef
-import Data.List                  (dropWhileEnd,isPrefixOf)
+import Data.List                  (isPrefixOf)
 import Data.Maybe                 (isNothing)
-import Data.Text                  ( Text(..) )
+import Data.Text                  ( Text )
 import qualified Data.Text as T
 import Data.Monoid                ( (<>) )
 import Shelly.Lifted
@@ -32,10 +30,9 @@ import System.IO                  (hSetBuffering, BufferMode( LineBuffering )
 import Distribution.Hup           ( Package(..),IsDocumentation(..)
                                   ,IsCandidate(..),Auth(..),Upload(..)
                                   ,mkAuth ,buildTar
-                                  ,findCabal, readCabal, extractCabal
-                                  ,parseTgzFilename, parseTgzFilename' 
+                                  ,readCabal, extractCabal
+                                  ,parseTgzFilename' 
                                   , getUploadUrl)
-import Types                      (Server(..))
 import CmdArgs                    (HupCommands(..), isUpload, processArgs)
 import SanityCheck                (sanity)
 import Upload                     (doUpload)
@@ -126,16 +123,17 @@ stackBuildDocs dir (Package pkg ver) = do
                     ++(if internal hc then ["--internal"] else [])
   echo "configuring"
   let builddir= toTextIgnore $ dir </> "dist"
-  run "cabal" $["configure", "--builddir="<>builddir, 
+  run_ "cabal" $["configure", "--builddir="<>builddir, 
                "--package-db=clear", "--package-db=global", 
                "--package-db=" <> snapshotpkgdb, 
                "--package-db=" <> localpkgdb] ++ verboseCommands
+               ++ cabalExtraArgs
   echo "making docs"
-  run "cabal" $["haddock", "--builddir=" <> builddir,  
+  run_ "cabal" $["haddock", "--builddir=" <> builddir,  
                "--html-location=/package/$pkg-$version/docs",
                "--contents-location=/package/$pkg-$version"] 
                ++ hyperlinkFlag ++ verboseCommands
-               ++ haddockExtraArgs
+               ++ haddockExtraArgs ++ cabalExtraArgs
   pkg <- return $ T.pack pkg
   ver <- return $ T.pack ver
   let srcDir = builddir </> "doc" </> "html" </> pkg
