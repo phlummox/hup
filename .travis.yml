@@ -10,19 +10,18 @@ before_install:
 - sudo apt-get install ghc-8.0.1
 - sudo apt-get install cabal-install-1.24
 - export PATH=/opt/cabal/1.24/bin:/opt/ghc/8.0.1/bin:$PATH
-- ls -al ~/.cabal
-- rm -rf ~/.cabal
 - cabal update
 
 install:
+# with cabal 1.24 and ghc 8.0.1, "--reorder-goals" is required for dependencies
+# to successfully install (and the build is much slower than with
+# ghc 7.10.3). TODO: track down problem sometime.
 - cabal install --only-dependencies --enable-tests --enable-benchmarks --flags="enabletests" --force-reinstalls --reorder-goals
 
 script:
 - cabal configure --enable-tests --enable-benchmarks -v2 --flags="enabletests"
-#- echo `ls`
 - cabal build
 - cabal test --show-details=always
-#- cat dist/test/hup-*-hup-spec.log
 - cabal check
 # check that the generated source-distribution can be built & installed
 - cabal sdist
@@ -36,12 +35,6 @@ script:
    fi)
 - echo pkg file is "`ls dist/$SRC_TGZ`"
 
-
-before_deploy: 
-- echo 'before deploy'
-- echo pkg "dist/$SRC_TGZ"
-- echo tag ${TRAVIS_TAG}
-- echo branch ${TRAVIS_BRANCH}
 
 deploy:
   file: dist/${SRC_TGZ}

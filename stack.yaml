@@ -1,5 +1,5 @@
-#resolver: lts-7.14
-resolver: lts-3.7
+resolver: lts-7.14
+#resolver: lts-3.7
 
 packages:
 - '.'
@@ -11,14 +11,14 @@ packages:
 extra-deps:
  
 ## for lts-3.7
-- shelly-1.6.8.1
-- simple-0.11.1
-- simple-templates-0.8.0.1
+#- shelly-1.6.8.1
+#- simple-0.11.1
+#- simple-templates-0.8.0.1
 
-## for lts-7.14
+# for lts-7.14
 ##- http-client-0.4.31.2
-#- http-client-0.5.5
-#- http-client-tls-0.3.3
+- http-client-0.5.5
+- http-client-tls-0.3.3
 
 # flags: {}
 

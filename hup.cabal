@@ -112,6 +112,11 @@ test-suite hup-spec
       , wai
       , wai-extra
       , vector
+      -- ridiculous. With cabal 1.24 and ghc 8.0.1, (a) installing dependencies
+      -- fails if 'vector' isn't added here (despite it not being a direct
+      -- dependency) and (b) the build takes much longer than with, e.g.
+      -- ghc 7.10.3.
+      -- TODO: track down the problem sometime.
       , warp
       , simple 
     cpp-options:         -DTESTS
