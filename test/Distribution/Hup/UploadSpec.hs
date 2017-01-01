@@ -98,7 +98,6 @@ shutdownServer :: (Port, Soc.Socket, ThreadId) -> IO ()
 shutdownServer (_port, sock, _tid) = 
   Soc.close sock
 
-#if 1
 spec :: Spec
 spec = 
   beforeAll startServer $ afterAll shutdownServer $ 
@@ -110,13 +109,3 @@ spec =
       context "when given a bad URL" $ 
         it "should not throw an exception" $ \(port, sock, tid) -> 
           badUrlReturns' port 
-#else
-spec :: Spec
-spec = 
-    describe "bogus" $ do
-      context "when a thing happens" $ 
-        it "should do the thing" $
-          3 `shouldBe` (1 + 2) 
-
-
-#endif

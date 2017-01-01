@@ -108,27 +108,11 @@ test-suite hup-spec
     build-depends:
         bytestring
       , network
-
-      -- >= 0.8.0
       , transformers
       , wai
       , wai-extra
-
-      , array
-      , async
-      , auto-update
-      , blaze-builder 
-      , case-insensitive
-      , containers
-      , ghc-prim
-      , hashable
-
-      , vault
       , vector
-      , word8
-
       , warp
-
       , simple 
     cpp-options:         -DTESTS
 
