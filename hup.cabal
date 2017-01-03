@@ -17,9 +17,9 @@ tested-with:         GHC == 8.0.1, GHC == 7.10.3
 cabal-version:       >=1.10
 extra-source-files:  README.md, stack.yaml 
 
-Flag EnableTests
-  Description:
-    enable test code
+Flag EnableWebTests
+  Description: Enable tests that do a (pretty minimal) check by running an actual
+    Warp web server. (Slower to build and run than other tests.)
   Default:     False
   Manual:      True
 
@@ -38,25 +38,20 @@ library
     , directory
     , filepath
     , http-client
-    , http-client-tls 
+    , http-client-tls
     , http-types
     , mtl
     , split
     , tar
     , zlib
   default-language:    Haskell2010
-  if flag(EnableTests)
-    build-depends:
-        QuickCheck
-      , temporary
-    cpp-options:         -DTESTS
 
 
 Flag PatchHelpMessage
   Description:
     Use patched version of cmdargs-0.10.14.1 with more informative help
-    message. Needs stack, so it can be pulled from github. (Or you need
-    to fetch the patched version and add it to a cabal sandbox.)
+    message. The patched version will need to be pulled from github
+    (or a stack.yaml file must point to it) - see stack.yaml for details.
   Default:     False
   Manual:      True
 
@@ -96,21 +91,30 @@ test-suite hup-spec
   main-is:             Spec.hs
   build-depends:
       base
+    , bytestring
+    , filepath
+    , hspec-wai
+    , http-client
+    , http-types
     , hup
     , hspec
     , QuickCheck
+    , simple 
+    , temporary
+    , transformers
+    , wai
+    , wai-extra
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
-  if flag(EnableTests)
-    other-modules:
-        Distribution.Hup.ParseSpec
-      , Distribution.Hup.UploadSpec
+  other-modules:
+      Distribution.Hup.WebTest
+    , Distribution.Hup.ParseSpec
+    , Distribution.Hup.Parse.Test
+    , Distribution.Hup.UploadSpec
+    , Distribution.Hup.Upload.Test
+  if flag(EnableWebTests)
     build-depends:
-        bytestring
-      , network
-      , transformers
-      , wai
-      , wai-extra
+        network
       , vector
       -- ridiculous. With cabal 1.24 and ghc 8.0.1, (a) installing dependencies
       -- fails if 'vector' isn't added here (despite it not being a direct
@@ -118,8 +122,7 @@ test-suite hup-spec
       -- ghc 7.10.3.
       -- TODO: track down the problem sometime.
       , warp
-      , simple 
-    cpp-options:         -DTESTS
+    cpp-options:         -DWEB_TESTS
 
 
 test-suite hup-doctest

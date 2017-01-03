@@ -1,7 +1,7 @@
 
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE CPP #-}
 {-# OPTIONS_HADDOCK prune  #-}
+{-# LANGUAGE CPP #-}
 
 {-| 
 
@@ -19,34 +19,28 @@ module Distribution.Hup.Upload (
 where
 
 import Control.Monad
+import qualified Data.ByteString.Builder as Bu
 import Data.List                        (dropWhileEnd)
 import Data.Maybe                       (fromJust)
 import Data.ByteString.Char8            (pack,unpack,putStrLn,ByteString(..) )
 import qualified Data.ByteString.Lazy.Char8 as LBS 
 import qualified Data.ByteString.Lazy as L (ByteString)
+import qualified Data.ByteString as BS 
 import Data.Monoid                      ( (<>) )
-
 import qualified Network.HTTP.Client as C
 import Network.HTTP.Client              (requestHeaders, Request, RequestBody(..)
                                         ,method, requestBody, responseHeaders
                                         ,responseStatus)
 import Network.HTTP.Client.TLS          (tlsManagerSettings)
 import qualified Network.HTTP.Types as T             
-import Network.HTTP.Client.MultipartFormData (formDataBody,partFileSource)
+import Network.HTTP.Client.MultipartFormData 
+                                        (formDataBody,partFileRequestBodyM
+                                        ,Part)
 
 import Distribution.Hup.Types 
 -- for re-export
 
-#ifdef TESTS
 
-import System.FilePath              ( (</>) )
-import System.IO.Temp               (withSystemTempDirectory)
-import Test.QuickCheck
-import Test.QuickCheck.Monadic      (run, assert, monadicIO)
-
-import Distribution.Hup.Parse       (arbUpload)
-
-#endif
 
 #if MIN_VERSION_http_client(0,4,30)
 --parseRequest :: MonadThrow m => String -> m Request
@@ -55,7 +49,7 @@ parseRequest = C.parseRequest
 
 --parseRequest :: MonadThrow m => String -> m Request
 parseRequest = 
-    liftM noThrow . C.parseUrl
+    fmap noThrow . C.parseUrl
   where
     noThrow req = req { C.checkStatus = \_ _ _ -> Nothing }
 #endif
@@ -113,7 +107,7 @@ mkAuth name password =
 -- | work out what URL to upload a .tgz file to. 
 -- @getUploadUrl server upload@ returns a URL.
 --
--- >>> getUploadUrl "http://localhost:8080/" $ Upload (Package "foo" "0.1.0.0") "./foo-0.1.0.0.tar.gz" IsDocumentation CandidatePkg
+-- >>> getUploadUrl "http://localhost:8080/" $ Upload (Package "foo" "0.1.0.0") "./foo-0.1.0.0.tar.gz" Nothing IsDocumentation CandidatePkg
 -- "http://localhost:8080/package/foo-0.1.0.0/candidate/docs"
 getUploadUrl
   :: String -> Upload -> String
@@ -124,7 +118,7 @@ getUploadUrl server upl  =
    let 
        -- we are permissive, and drop any extra trailing slashes on server.
        serverUrl = dropWhileEnd (=='/') server 
-       (Upload (Package pkgName pkgVer) _filePath uploadType pkgType ) = upl
+       (Upload (Package pkgName pkgVer) _filePath _fileConts uploadType pkgType ) = upl
    in case uploadType of
        IsPackage -> case pkgType of
          NormalPkg       -> serverUrl <>"/packages/"   
@@ -145,7 +139,7 @@ getUploadUrl server upl  =
 -- e.g. usage:
 --
 -- > let p = Package "foo" "0.1.0.0"
--- > let u = Upload p "./foo-0.1.0.0.tar.gz" IsDocumentation CandidatePkg
+-- > let u = Upload p "./foo-0.1.0.0.tar.gz" Nothing IsDocumentation CandidatePkg
 -- > req <- buildRequest "http://localhost:8080/" u (mkAuth "tmp" "tmp")
 -- > sendRequest req
 buildRequest :: String -> Upload -> Maybe Auth -> IO Request
@@ -153,14 +147,14 @@ buildRequest serverUrl upl userAuth  =
 -- TODO:
 -- handle Yackage as well?
 --  https://github.com/snoyberg/yackage/blob/master/yackage-upload.hs 
-   let (Upload _ filePath uploadType _pkgType ) = upl
+   let (Upload _ filePath fileConts uploadType _pkgType ) = upl
    in case uploadType of
-       IsPackage -> 
+       IsPackage -> do
           let url = getUploadUrl serverUrl upl
-          in  postPkg url filePath userAuth
-       IsDocumentation ->
+          postPkg url filePath fileConts userAuth
+       IsDocumentation -> do
           let url = getUploadUrl serverUrl upl
-          in  putDocs url filePath userAuth
+          putDocs url filePath fileConts userAuth
 
 -- | Send an HTTP request and get the response.
 -- 
@@ -202,26 +196,29 @@ mkResponse resp =
 
 -- | Construct a @POST@ request for uploading a package.
 --
--- @postPkg url fileName userAuth@ creates a request which will upload the file
--- given by @fileName@ to the URL at @url@, using the user authentication
+-- @postPkg url conts userAuth@ creates a request which will upload the file conts
+-- in @conts@ to the URL at @url@, using the user authentication
 -- @userAuth@.
 postPkg
-  :: String -> FilePath -> Maybe Auth -> IO Request
-postPkg url fileName userAuth = do
-  let (Options opt) = defaultOptions userAuth
-      addBody = formDataBody [partFileSource "package" fileName] 
-  opt <$> (addBody  =<< parseRequest url)
+  :: String -> FilePath -> Maybe L.ByteString -> Maybe Auth -> 
+     IO Request
+postPkg url fileName fileConts userAuth = do
+  let conts :: IO RequestBody
+      conts = RequestBodyLBS `liftM` 
+                  maybe (LBS.readFile fileName) return fileConts
+      (Options opt) = defaultOptions userAuth
+      formBody = formDataBody [partFileRequestBodyM "package" fileName conts]
 
-
+  opt <$> (formBody =<< parseRequest url)
 
 -- | Build a @PUT@ request to upload package documentation.
 --
--- @putDocs url fileName userAuth@ creates a request which will upload the file
--- given by @fileName@ to the URL at @url@, using the user authentication
+-- @putDocs url fileConts userAuth@ creates a request which will upload the file contents
+-- in @fileConts@ to the URL at @url@, using the user authentication
 -- @userAuth@.
-putDocs :: String -> FilePath -> Maybe Auth -> IO Request
-putDocs url fileName userAuth = do
-  conts <- LBS.readFile fileName 
+putDocs :: String -> FilePath -> Maybe L.ByteString -> Maybe Auth -> IO Request
+putDocs url fileName fileConts userAuth = do
+  conts <- maybe (LBS.readFile fileName) return fileConts
   -- build up request
   let (Options opt) = defaultOptions userAuth
       addMore x = x {
@@ -233,84 +230,24 @@ putDocs url fileName userAuth = do
         }
   (addMore . opt) <$> parseRequest url
 
-
-#ifdef TESTS
-
-
-arbAuth =
-  mkAuth <$> arbitrary <*> arbitrary
-
-     
-
--- | Round-trips an http request to check things seem to be going to the
--- right URLs.
---
--- Doesn't check the file/body, just metadata.
-httpRoundTripsOK' :: Int -> Property
-httpRoundTripsOK' port = 
-  forAll arbUpload $ \upl ->
-    forAll arbAuth $ \auth ->
-      httpRoundTripsOK port upl auth
-
-type ParsedTgz = Either String (IsDocumentation, Package) 
-
-httpRoundTripsOK port upl auth = 
-      monadicIO $ do
-        response <- run $ emptyFileRequest port upl auth
-        assert $ statusCode response == 200
-
-        let bod = LBS.unpack $ responseBody response
-            _unserialized :: (IsDocumentation, IsCandidate, ParsedTgz)
-            _unserialized@(recdIsDoc1, recdIsCand, parsedTgz) = read bod
-
-        let sentIsCand = isCandidate upl
-            sentIsDoc  = uploadType  upl
-            sentPkg    = package     upl 
-
-        assert (parsedTgz == Right (sentIsDoc, sentPkg) )
-        assert (sentIsCand == recdIsCand)
-        assert (sentIsDoc  == recdIsDoc1)
-  where
-  emptyFileRequest :: Int -> Upload -> Maybe Auth -> IO Response
-  emptyFileRequest port upl auth = 
-    withSystemTempDirectory "huptest" $ \tmpDir -> do
-      let newFile = tmpDir </> (fileToUpload upl)
-      upl <- return $ upl { fileToUpload = newFile } 
-      writeFile (tmpDir </> (fileToUpload upl)) ""
-      let url = "http://localhost:" ++ show port ++ "/"
-      buildRequest url upl auth >>= sendRequest
+-- | given a filename and contents, produce an http-client 'Part'
+-- for uploading as a package to a hackage server
+mkPart :: FilePath -> L.ByteString -> Part
+mkPart fileName fileConts = do
+  let myConts = return $ RequestBodyLBS fileConts
+  partFileRequestBodyM "package" fileName myConts
 
 
-
--- | Round-trips an http request to check things seem to be going to the
--- right URLs.
---
--- Doesn't check the file/body, just metadata.
-badUrlReturns' :: Int -> Property
-badUrlReturns' port = 
-  forAll arbUpload $ \upl ->
-    forAll arbAuth $ \auth ->
-      badUrlReturns port upl auth
-
-
--- | Given a bad url, the http library should return a 
--- non-2XX status code, rather than throwing an exception.
-badUrlReturns port upl auth = do
-  monadicIO $ do
-    response <- run $ badRequest port upl auth
-    assert $ statusCode response /= 200
-
-  where
-  badRequest :: Int -> Upload -> Maybe Auth -> IO Response
-  badRequest port upl auth = 
-    withSystemTempDirectory "huptest" $ \tmpDir -> do
-      let newFile = tmpDir </> (fileToUpload upl)
-      upl <- return $ upl { fileToUpload = newFile } 
-      writeFile (tmpDir </> (fileToUpload upl)) ""
-      let url = "http://localhost:" ++ show port ++ "/fubar/"
-      buildRequest url upl auth >>= sendRequest
+-- | Convert a 'RequestBody' to a 'ByteString'.
+-- 
+-- For testing purposes. Won't work if your 'RequestBody' is set up to do 
+-- streaming (e.g. using the 'RequestBodyStream' constructor/ 'partFileSource').
+bodyToByteString :: RequestBody -> L.ByteString
+bodyToByteString b = case b of
+    RequestBodyLBS lbs             -> lbs
+    RequestBodyBS bs               -> Bu.toLazyByteString $ Bu.byteString bs
+    RequestBodyBuilder _sz builder -> Bu.toLazyByteString builder
+    _                              -> error "bodyToBS not done yet"
 
 
-
-#endif
 

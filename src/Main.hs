@@ -43,7 +43,7 @@ import Upload                     (doUpload)
 #else
 listDirectory :: Prelude.FilePath -> IO [Prelude.FilePath]
 listDirectory path =
-  (filter f) <$> (getDirectoryContents path)
+  filter f <$> getDirectoryContents path
   where f filename = filename /= "." && filename /= ".."
 #endif
 
@@ -157,7 +157,7 @@ stackBuildDocs dir (Package pkg ver) = do
   --    run "tar" ["cvz", "-C", dir, "--format=ustar", "-f", docTgz,
   --                pkg <> "-" <> ver <> "-docs" ]
   liftIO $ buildTar docTgz (fromPath dir) [up docDir]
-  return $ Upload (Package (up pkg) (up ver)) docTgz IsDocumentation (isCand hc)
+  return $ Upload (Package (up pkg) (up ver)) docTgz Nothing IsDocumentation (isCand hc)
 
 
 -- | if we have a username, then we need to get
@@ -240,7 +240,7 @@ uploadTgz expectedType desc = do
   when (upType /= expectedType) $
     lift $ terror $ T.unwords ["Expected", desc, "file, got", fileName'']
   -- if all is ok, do the upload.
-  let upload = Upload (Package pkg ver) (file hc)  expectedType candType 
+  let upload = Upload (Package pkg ver) (file hc) Nothing expectedType candType 
   auth <- lift $ getAuth hc
   let url = getUploadUrl serverUrl upload
   lift $ echo $ "uploading to " <> T.pack url

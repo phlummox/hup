@@ -1,51 +1,127 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE CPP #-}
 
 module Distribution.Hup.UploadSpec where
 
-import Test.Hspec
 
-import Control.Concurrent                     (forkIO, ThreadId)
+
+
 import Control.Exception                      (throwIO)
 import Control.Monad
 import Control.Monad.IO.Class                 (liftIO)
 import qualified Data.ByteString.Char8 as BS
-import Data.ByteString.Lazy.Char8 as LBS      (pack)
+import qualified Data.ByteString.Lazy.Char8 as LBS   --   pack
 import Data.Maybe                             (fromJust)
-import qualified Network.Socket as Soc        (Socket, close)
-import Network.Wai.Handler.Warp               (Port, defaultSettings
-                                              ,runSettingsSocket)
-import Network.Wai.Parse as Parse             (FileInfo(..))
-import Web.Frank                              (post, put)
-import Web.Simple                             (Application, ControllerT
-                                              ,Controller, controllerApp, ok
-                                              ,parseForm, queryParam, respond)
+import Data.Monoid                            ( (<>) )
+import Network.HTTP.Client.MultipartFormData  (renderParts,webkitBoundary)
+import Network.HTTP.Types as T                (statusCode,methodPost
+                                              ,StdMethod(..)) 
+import Network.Wai.Parse as Parse             (FileInfo(..), fileName)
+import Network.Wai.Test                       (simpleStatus,SResponse
+                                              ,simpleBody)
+import Test.Hspec
+import qualified Test.Hspec.Wai as HWai       --(put, request)
+import Test.Hspec.Wai.Internal                --(WaiSession,runWaiSession)
+import Test.QuickCheck                        --(forAll)
+import Test.QuickCheck.Monadic                --(assert, run, monadicIO )
+import Web.Frank                              --(post, put)
+import Web.Simple --(Application,controllerApp, ControllerT,Controller,ok,parseForm, queryParam, rawPathInfo, request, respond, routeMethod, routePattern)
+
 
 import Distribution.Hup.Upload  
 import Distribution.Hup.Parse 
+import Distribution.Hup.Parse.Test
 
-#if MIN_VERSION_warp(3,2,4)
-import qualified Network.Wai.Handler.Warp as Warp  (openFreePort)
+import qualified Distribution.Hup.Upload.Test 
 
-openFreePort = Warp.openFreePort
-#else
-import Network.Socket
+import qualified Distribution.Hup.WebTest 
 
-openFreePort :: IO (Port, Soc.Socket)
-openFreePort = do 
-  s <- socket AF_INET Stream defaultProtocol
-  localhost <- inet_addr "127.0.0.1"
-  bind s (SockAddrInet aNY_PORT localhost)
-  listen s 1
-  port <- socketPort s
-  return (fromIntegral port, s)
-#endif
+type ParsedTgz = Either String (IsDocumentation, Package) 
+
 
 -- `main` is here so that this module can be run from GHCi on its own.  It is
 -- not needed for automatic spec discovery.
 main :: IO ()
 main = 
   hspec spec 
+
+spec :: Spec
+spec = do
+  describe "testing with mocked requests" $ 
+    describe "mocked requests" $
+      context "when processed by a mock hackage server" $ 
+        it "should go to the right web app path" 
+          httpMetadataRoundtripsOK'  
+  describe "testing with live HTTP requests" $ 
+    -- this will be replaced with a stub unless the WEB_TESTS macro
+    -- is defined.
+    Distribution.Hup.WebTest.liveTest webApp
+
+
+
+httpMetadataRoundtripsOK' = 
+  forAll arbUpload $ \upl -> httpMetadataRoundtripsOK upl 
+
+
+httpMetadataRoundtripsOK upl = monadicIO $ do 
+  upl <- return $ upl { fileConts = Just "" }
+  testRequest <- run $ buildTestRequest "" upl 
+  testResponse <- run $ sendTestRequest testRequest
+
+  let resStatus = T.statusCode $ simpleStatus testResponse
+      resBody :: String
+      resBody =   LBS.unpack $ simpleBody testResponse
+      _unserialized :: (IsDocumentation, IsCandidate, ParsedTgz)
+      _unserialized@(recdIsDoc1, recdIsCand, parsedTgz) = read resBody
+
+  let sentIsCand = isCandidate upl
+      sentIsDoc  = uploadType  upl
+      sentPkg    = package     upl
+
+  assert (resStatus == 200)
+  assert (sentIsCand == recdIsCand)
+  assert (sentIsDoc  == recdIsDoc1)
+  assert (parsedTgz == Right (sentIsDoc, sentPkg) )
+
+
+sendTestRequest :: WaiSession SResponse -> IO SResponse
+sendTestRequest testReq =   
+  runWaiSession testReq webApp
+
+--showInd x =
+--  indent 4 (show x) 
+--
+--indent n = 
+--  let wspace = replicate n ' ' 
+--  in  unlines .  (map (wspace ++)) . lines
+
+testPut :: String -> LBS.ByteString -> WaiSession SResponse
+testPut url conts = 
+  HWai.put (BS.pack url) conts
+
+testPost
+  :: String -> FilePath -> LBS.ByteString -> IO (WaiSession SResponse)
+testPost url fileName fileConts = do
+  boundary <- webkitBoundary 
+  let part    = mkPart fileName fileConts
+      headers = [("Content-Type", 
+                    "multipart/form-data; boundary=" <> boundary)]
+  body <- bodyToByteString <$> renderParts boundary [part]
+  return $ HWai.request T.methodPost (BS.pack url) headers body
+
+
+-- Only call when fileConts has something in it.
+buildTestRequest
+  :: String -> Upload -> IO (WaiSession SResponse)
+buildTestRequest serverUrl upl  = do
+  let (Upload _ filePath fileConts uploadType _pkgType ) = upl
+      url = getUploadUrl serverUrl upl
+  fileConts <- return (fromJust fileConts)
+  case uploadType of
+      IsPackage -> 
+         testPost url filePath fileConts
+      IsDocumentation -> 
+         return $ testPut url fileConts 
+
 
 ioAssert pred mesg = 
   unless pred $
@@ -55,23 +131,29 @@ ioAssert pred mesg =
 -- parseable by 'Text.Read.read'.
 webApp :: Application
 webApp = controllerApp () $ do
-    post "/packages/" $ do
-      (_params, files) <- parseForm
-      handlePost NormalPkg files
-    post "/packages/candidates/" $ do
-      (_params, files) <- parseForm
-      handlePost CandidatePkg files
-    put "/package/:pkgVer/docs" $ do
-      pkgVer <- fromJust <$> queryParam "pkgVer"  
-      let filename = pkgVer :: String
-      handlePut NormalPkg filename
-    put "/package/:pkgVer/candidate/docs" $ do
-      pkgVer <- fromJust <$> queryParam "pkgVer"  
-      let filename = pkgVer :: String
-      handlePut CandidatePkg filename
-
+    myReq <- request 
+    routeMethod T.POST $ do path <- rawPathInfo <$> request
+                            let isCand = if "/candidates/" `BS.isSuffixOf`path
+                                         then CandidatePkg
+                                         else NormalPkg  
+                            when (path == "/packages/" || 
+                                 path == "/packages/candidates/") $ do
+                                    (_params, files) <- parseForm
+                                    handlePost isCand files
+    routeMethod T.PUT $ routePattern "/package/:pkgVer/:isCand" $ do
+                            pkgVer <- fromJust <$> queryParam "pkgVer"  
+                            let filename = pkgVer :: String
+                            isCand <- fromJust <$> queryParam "isCand" 
+                            let isCand' = if ("candidate" :: String) == isCand
+                                         then CandidatePkg
+                                         else NormalPkg
+                            let remainingBit = if "candidate"== isCand
+                                          then "docs"
+                                          else ""
+                            routePattern remainingBit $ 
+                              handlePut isCand' filename
   where 
-    handlePost :: IsCandidate -> [(a, Parse.FileInfo c)] -> ControllerT s IO b
+    handlePost :: IsCandidate -> [(a, FileInfo c)] -> ControllerT s IO b
     handlePost isCand files = do
       ioAssert (length files == 1)
                "posted package should have exactly 1 file" 
@@ -88,24 +170,7 @@ webApp = controllerApp () $ do
                 show (IsDocumentation, isCand, parsed)
 
 
-startServer :: IO (Port, Soc.Socket, ThreadId)
-startServer = do
-  (port, sock) <- openFreePort 
-  tid <- forkIO $ runSettingsSocket defaultSettings sock webApp
-  return (port, sock, tid) 
 
-shutdownServer :: (Port, Soc.Socket, ThreadId) -> IO ()
-shutdownServer (_port, sock, _tid) = 
-  Soc.close sock
 
-spec :: Spec
-spec = 
-  beforeAll startServer $ afterAll shutdownServer $ 
-    describe "buildRequest" $ do
-      context "when its result is fed into sendRequest" $ 
-        it "should send to the right web app path" $ \(port, sock, tid) -> 
-          httpRoundTripsOK' port 
 
-      context "when given a bad URL" $ 
-        it "should not throw an exception" $ \(port, sock, tid) -> 
-          badUrlReturns' port 
+

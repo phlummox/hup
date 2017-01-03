@@ -86,11 +86,4 @@ probableBody bod =
 
 
 
-----test :: IO (Response ByteString)
---test :: IO (Either String (Response ByteString))
---test = do 
---  let u = Upload (Package "foo" "0.1.0.0") "./hup-0.1.0.0.tar.gz"  IsDocumentation CandidatePkg 
---  doUpload "http://www.google.com.au" u Nothing
-
-
 

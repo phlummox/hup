@@ -24,9 +24,9 @@ extra-deps:
 
 # to enable test code:
 flags:
-  hup:
+  hup: #{}
 #    PatchHelpMessage: true
-    EnableTests: true
+    EnableWebTests: true
 
 extra-package-dbs: []
 

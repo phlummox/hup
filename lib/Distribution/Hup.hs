@@ -28,7 +28,7 @@ module Distribution.Hup
   , mkAuth
   , postPkg
   , putDocs
-  , buildRequest    
+  , buildRequest
   , sendRequest
 -- * Types
   , IsCandidate(..)
