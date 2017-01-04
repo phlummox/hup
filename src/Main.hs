@@ -123,12 +123,13 @@ stackBuildDocs dir (Package pkg ver) = do
   localpkgdb    <- rstrip <$> silently (run "stack" ["path", "--local-pkg-db"])
   let verboseCommands  = if verbose hc then ["-v2"] else [] 
   let haddockExtraArgs = let args = haddockArgs hc 
-                         in if null args
+                         in (if null args
                             then []
-                            else ["--haddock-options=" <>T.pack(haddockArgs hc)]
-  let cabalExtraArgs =(if executables hc then ["--executables"] else [])
-                    ++(if tests hc then ["--tests"] else [])
-                    ++(if internal hc then ["--internal"] else [])
+                            else ["--haddock-options=" <>T.pack(haddockArgs hc)])
+                          ++ (if executables hc then ["--executables"] else [])
+                          ++(if tests hc then ["--tests"] else [])
+                          ++(if internal hc then ["--internal"] else [])
+  let cabalExtraArgs =(if tests hc then ["--enable-tests"] else [])
   echo "configuring"
   let builddir= toTextIgnore $ dir </> "dist"
   run_ "cabal" $["configure", "--builddir="<>builddir, 
@@ -141,7 +142,7 @@ stackBuildDocs dir (Package pkg ver) = do
                "--html-location=/package/$pkg-$version/docs",
                "--contents-location=/package/$pkg-$version"] 
                ++ hyperlinkFlag ++ verboseCommands
-               ++ haddockExtraArgs ++ cabalExtraArgs
+               ++ haddockExtraArgs 
   pkg <- return $ T.pack pkg
   ver <- return $ T.pack ver
   let srcDir = builddir </> "doc" </> "html" </> pkg

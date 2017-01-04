@@ -208,7 +208,6 @@ postPkg url fileName fileConts userAuth = do
                   maybe (LBS.readFile fileName) return fileConts
       (Options opt) = defaultOptions userAuth
       formBody = formDataBody [partFileRequestBodyM "package" fileName conts]
-
   opt <$> (formBody =<< parseRequest url)
 
 -- | Build a @PUT@ request to upload package documentation.

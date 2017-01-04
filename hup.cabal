@@ -60,11 +60,12 @@ executable hup
   hs-source-dirs:      src
   main-is:             Main.hs
   other-modules:       
-      Types
-    , CmdArgs
+      CmdArgs
     , CmdArgs.PatchHelp
     , DefaultServerUrl
+    , Paths_hup
     , SanityCheck
+    , Types
     , Upload
   if flag(PatchHelpMessage)
     other-modules: CmdArgs.PatchHelp

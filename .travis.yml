@@ -62,17 +62,17 @@ matrix:
   #  compiler: ": #stack 7.10.2"
   #  addons: {apt: {packages: [libgmp-dev]}}
 
-  - env: BUILD=stack ARGS="--resolver lts-6" PKG_FLAGS="--flag hup:enablewebtests"
+  - env: BUILD=stack ARGS="--resolver lts-6" GHCVER=7.10.3 CABALVER=1.22 PKG_FLAGS="--flag hup:enablewebtests"
     compiler: ": #stack 7.10.3"
-    addons: {apt: {packages: [libgmp-dev]}}
+    addons: {apt: {packages: [libgmp-dev,cabal-install-1.22,ghc-7.10.3], sources: [hvr-ghc]}}
 
-  - env: BUILD=stack ARGS="--resolver lts-7" PKG_FLAGS="--flag hup:enablewebtests"
+  - env: BUILD=stack ARGS="--resolver lts-7" GHCVER=7.10.3 CABALVER=1.22 PKG_FLAGS="--flag hup:enablewebtests"
     compiler: ": #stack 8.0.1"
-    addons: {apt: {packages: [libgmp-dev]}}
+    addons: {apt: {packages: [libgmp-dev,cabal-install-1.22,ghc-7.10.3], sources: [hvr-ghc]}}
 
-  - env: BUILD=stack ARGS="--resolver lts-7" PKG_FLAGS="--flag hup:-enablewebtests" 
+  - env: BUILD=stack ARGS="--resolver lts-7" GHCVER=7.10.3 CABALVER=1.22 PKG_FLAGS="--flag hup:-enablewebtests" 
     compiler: ": #stack 8.0.1"
-    addons: {apt: {packages: [libgmp-dev]}}
+    addons: {apt: {packages: [libgmp-dev,cabal-install-1.22,ghc-7.10.3], sources: [hvr-ghc]}}
 
   # Build on macOS in addition to Linux
   - env: BUILD=stack ARGS="" PKG_FLAGS="--flag hup:enablewebtests" 
@@ -97,8 +97,12 @@ before_install:
   if [ `uname` = "Darwin" ]
   then
     travis_retry curl --insecure -L https://www.stackage.org/stack/osx-x86_64 | tar xz --strip-components=1 --include '*/stack' -C ~/.local/bin
+    stack setup
+    stack install cabal-install
+    export PATH=`stack path --compiler-bin`:$PATH
   else
     travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+    stack setup
   fi
 
   # Use the more reliable S3 mirror of Hackage
@@ -110,6 +114,10 @@ before_install:
   then
     echo 'jobs: $ncpus' >> $HOME/.cabal/config
   fi
+- stack --version
+- cabal --version
+- ghc --version
+- travis_retry cabal update
 
 install:
 - echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
@@ -121,9 +129,6 @@ install:
       stack --no-terminal --install-ghc $ARGS test $PKG_FLAGS --bench --only-dependencies
       ;;
     cabal)
-      cabal --version
-      travis_retry cabal update
-
       # Get the list of packages from the stack.yaml file
       PACKAGES=$(stack --install-ghc query locals | grep '^ *path' | sed 's@^ *path:@@')
 
@@ -165,9 +170,20 @@ script:
   esac
   set +ex
 
+before_deploy:
+- PKGVER=$(cabal info . | head -n  1 | cut -d ' ' -f 2)
+- SRC_TGZ=$PKGVER.tar.gz
+- |
+  if [ ! -f "$SRC_TGZ" ] ; then
+    stack sdist;
+    distdir=`stack path --dist-dir`; 
+    cp $distdir/$SRC_TGZ .;
+  fi
+- ls -al "$SRC_TGZ"; true
+
 deploy:
-  file: dist/${SRC_TGZ}
   provider: releases
+  file: "$SRC_TGZ"
   skip_cleanup: true
   # overwrite: true
   api_key:
