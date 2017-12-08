@@ -79,13 +79,12 @@ matrix:
     compiler: ": #stack default osx"
     os: osx
 
-  - env: BUILD=stack ARGS="--resolver lts-6" PKG_FLAGS="--flag hup:enablewebtests" 
-    compiler: ": #stack 7.10.3 osx"
-    os: osx
+# osx build too slow on Travis, leaving it out.
+#  - env: BUILD=stack ARGS="--resolver lts-6" PKG_FLAGS="--flag hup:enablewebtests" 
+#    compiler: ": #stack 7.10.3 osx"
+#    os: osx
 
-  #- env: BUILD=stack ARGS="--resolver lts-7"
-  #  compiler: ": #stack 8.0.1 osx"
-  #  os: osx
+
 
 before_install:
 # Using compiler above sets CC to an invalid value, so unset it
