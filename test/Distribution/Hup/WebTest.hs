@@ -9,6 +9,7 @@ import Distribution.Hup.Upload.Test
 import Distribution.Hup.Parse 
 import Network.Wai                            (Application)
 import Test.Hspec
+import Test.Hspec.Core.QuickCheck             (modifyMaxSuccess)
 import Test.QuickCheck
 
 #ifdef WEB_TESTS
@@ -51,12 +52,14 @@ liveTest webApp = do
     beforeAll (startServer webApp) $ afterAll shutdownServer $ 
       describe "buildRequest" $ do
         context "when its result is fed into sendRequest" $ 
-          it "should send to the right web app path" $ \(port, sock, tid) -> 
-            httpRoundTripsOK' sendRequest port 
+          modifyMaxSuccess (const 10) $
+            it "should send to the right web app path" $ \(port, sock, tid) -> 
+              httpRoundTripsOK' sendRequest port 
 
         context "when given a bad URL" $ 
-          it "should not throw an exception" $ \(port, sock, tid) -> 
-            badUrlReturns' sendRequest port 
+          modifyMaxSuccess (const 10) $
+            it "should not throw an exception" $ \(port, sock, tid) -> 
+              badUrlReturns' sendRequest port 
 
 #else
 
@@ -64,7 +67,6 @@ liveTest :: Application -> SpecWith ()
 liveTest _ = return ()
 
 #endif
-
 
 
 

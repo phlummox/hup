@@ -99,6 +99,7 @@ test-suite hup-spec
     , http-types
     , hup
     , hspec
+    , hspec-core
     , QuickCheck
     , simple 
     , temporary
