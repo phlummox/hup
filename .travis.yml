@@ -95,7 +95,7 @@ before_install:
 - mkdir -p ~/.local/bin
 - |
   export LINUX64_STACK="https://github.com/commercialhaskell/stack/releases/download/v1.5.1/stack-1.5.1-linux-x86_64.tar.gz"
-  export OSX_STACK="https://www.stackage.org/stack/osx-x86_64"
+  export OSX_STACK="https://github.com/commercialhaskell/stack/releases/download/v1.5.1/stack-1.5.1-osx-x86_64.tar.gz"
   if [ `uname` = "Darwin" ]
   then
     travis_retry curl --insecure -L "${OSX_STACK}" | tar xz --strip-components=1 --include '*/stack' -C ~/.local/bin
