@@ -52,12 +52,12 @@ liveTest webApp = do
     beforeAll (startServer webApp) $ afterAll shutdownServer $ 
       describe "buildRequest" $ do
         context "when its result is fed into sendRequest" $ 
-          modifyMaxSuccess (const 10) $
+          modifyMaxSuccess (const 50) $
             it "should send to the right web app path" $ \(port, sock, tid) -> 
               httpRoundTripsOK' sendRequest port 
 
         context "when given a bad URL" $ 
-          modifyMaxSuccess (const 10) $
+          modifyMaxSuccess (const 50) $
             it "should not throw an exception" $ \(port, sock, tid) -> 
               badUrlReturns' sendRequest port 
 
