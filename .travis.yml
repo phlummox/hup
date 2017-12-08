@@ -94,14 +94,16 @@ before_install:
 - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$HOME/.local/bin:/opt/alex/$ALEXVER/bin:/opt/happy/$HAPPYVER/bin:$HOME/.cabal/bin:$PATH
 - mkdir -p ~/.local/bin
 - |
+  export LINUX64_STACK="https://github.com/commercialhaskell/stack/releases/download/v1.5.1/stack-1.5.1-linux-x86_64.tar.gz"
+  export OSX_STACK="https://www.stackage.org/stack/osx-x86_64"
   if [ `uname` = "Darwin" ]
   then
-    travis_retry curl --insecure -L "https://github.com/commercialhaskell/stack/releases/download/v1.5.1/stack-1.5.1-linux-x86_64.tar.gz" | tar xz --strip-components=1 --include '*/stack' -C ~/.local/bin
+    travis_retry curl --insecure -L "${OSX_STACK}" | tar xz --strip-components=1 --include '*/stack' -C ~/.local/bin
     stack setup
     stack install cabal-install
     export PATH=`stack path --compiler-bin`:$PATH
   else
-    travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+    travis_retry curl -L "${LINUX64_STACK}" | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
     stack setup
   fi
 
