@@ -15,7 +15,7 @@ category:            Distribution, Web, Documentation
 build-type:          Simple
 tested-with:         GHC == 8.0.1, GHC == 7.10.3 
 cabal-version:       >=1.10
-extra-source-files:  README.md, stack.yaml 
+extra-source-files:  README.md, stack.yaml, ChangeLog.md 
 
 Flag EnableWebTests
   Description: Enable tests that do a (pretty minimal) check by running an actual
@@ -67,6 +67,8 @@ executable hup
     , SanityCheck
     , Types
     , Upload
+    , Stack
+    , DocBuilding
   if flag(PatchHelpMessage)
     other-modules: CmdArgs.PatchHelp
     cpp-options:   -DPATCH_HELP
@@ -79,16 +81,16 @@ executable hup
     , bytestring
     , directory 
     , mtl
-    , shelly >= 1.6.5
-    -- shelly - higher possibly needed?
+    , shelly >= 1.6.6
     , tagsoup
+    -- , temporary >= 1.2.1
     , text
     , transformers
     , hup
 
 test-suite hup-spec
   type:                exitcode-stdio-1.0
-  hs-source-dirs:      test
+  hs-source-dirs:      src-hspec-test
   main-is:             Spec.hs
   build-depends:
       base
@@ -129,7 +131,7 @@ test-suite hup-spec
 
 test-suite hup-doctest
   type:                exitcode-stdio-1.0
-  hs-source-dirs:      test
+  hs-source-dirs:      src-doctest
   main-is:             DocTest.hs
   build-depends:       base
                      , hup
