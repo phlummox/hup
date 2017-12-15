@@ -5,14 +5,24 @@ built with `stack` to a hackage server; a Haskellified version of
 [phadej's script](https://github.com/phadej/binary-orphans/blob/master/hackage-docs.sh),
 which is a stack-enabled version of [ekmett's script](https://github.com/ekmett/lens/blob/master/scripts/hackage-docs.sh).
 
-In addition to `stack`, requires that `cabal` and `haddock` are on your path.
-(If you're using stack, they're easily installed with, e.g.  `stack install
-cabal-install`.)
+In addition to `stack`, it requires the `cabal` executable
+(but will install an appropriate `cabal` if it doesn't find one in the
+binaries for the package snapshot your project is using).
 
 ## Installation
 
-Install in the standard Haskell way: `cabal install hup`, or `stack
-install hup`.
+Install in the standard Stack way with `stack install hup`.
+
+## Quick usage
+
+Try:
+
+~~~ 
+$ cd /path/to/my/project
+$ stack build
+$ hup packboth -u myHackageUserID -p myHackagePassword
+$ hup docboth -u myHackageUserID -p myHackagePassword 
+~~~
 
 ## Usage
 
@@ -95,6 +105,28 @@ install hup`.
         -c --candidate             
         -u --user=USER             
         -p --password=PASSWORD      
+
+## Troubleshooting
+
+### I get an error during upload that says "...: does not exist (no such protocol name: tcp)"
+
+This is not actually a bug in `hup`, but is found in e.g. Docker containers
+that don't have all the packages needed for networking - see e.g. 
+[here](https://stackoverflow.com/questions/46322773/yesod-app-in-docker-container-cant-make-network-requests) on StackOverflow.
+
+You will need to install networking packages appropriate for your distro - on Ubuntu, something like ca-certificates, libgnutls28 (or another version of the GNU TLS library), and netbase.  
+
+### I get some sort of error when building documents that says "...haddock: internal error: ... hGetContents: invalid argument (invalid byte sequence)"
+
+Again, this isn't actually a bug in `hup`, but happens (e.g. in Docker
+containers) when the system locale is not properly set up (see a bug report
+[here](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=871839) arising from a
+similar issue). Annoyingly, `haddock` depends on the locale being properly set,
+though it doesn't really seem necessary.
+
+Try running `locale-gen "en_US.UTF-8"` to generate an appropriate UTF-8
+locale, and `export LC_ALL="en_US.UTF-8"` so that the locale can be found
+from environment variables. 
 
 ## Bash command-line completion
 
