@@ -16,22 +16,6 @@ matrix:
   include:
   # We grab the appropriate GHC and cabal-install versions from hvr's PPA. See:
   # https://github.com/hvr/multi-ghc-travis
-  #- env: BUILD=cabal GHCVER=7.0.4 CABALVER=1.16 HAPPYVER=1.19.5 ALEXVER=3.1.7
-  #  compiler: ": #GHC 7.0.4"
-  #  addons: {apt: {packages: [cabal-install-1.16,ghc-7.0.4,happy-1.19.5,alex-3.1.7], sources: [hvr-ghc]}}
-  #- env: BUILD=cabal GHCVER=7.2.2 CABALVER=1.16 HAPPYVER=1.19.5 ALEXVER=3.1.7
-  #  compiler: ": #GHC 7.2.2"
-  #  addons: {apt: {packages: [cabal-install-1.16,ghc-7.2.2,happy-1.19.5,alex-3.1.7], sources: [hvr-ghc]}}
-  #- env: BUILD=cabal GHCVER=7.4.2 CABALVER=1.16 HAPPYVER=1.19.5 ALEXVER=3.1.7
-  #  compiler: ": #GHC 7.4.2"
-  #  addons: {apt: {packages: [cabal-install-1.16,ghc-7.4.2,happy-1.19.5,alex-3.1.7], sources: [hvr-ghc]}}
-  #- env: BUILD=cabal GHCVER=7.6.3 CABALVER=1.16 HAPPYVER=1.19.5 ALEXVER=3.1.7
-  #  compiler: ": #GHC 7.6.3"
-  #  addons: {apt: {packages: [cabal-install-1.16,ghc-7.6.3,happy-1.19.5,alex-3.1.7], sources: [hvr-ghc]}}
-  #- env: BUILD=cabal GHCVER=7.8.4 CABALVER=1.18 HAPPYVER=1.19.5 ALEXVER=3.1.7
-  #  compiler: ": #GHC 7.8.4"
-  #  addons: {apt: {packages: [cabal-install-1.18,ghc-7.8.4,happy-1.19.5,alex-3.1.7], sources: [hvr-ghc]}}
-
   - env: BUILD=cabal GHCVER=7.10.3 CABALVER=1.22 HAPPYVER=1.19.5 ALEXVER=3.1.7 PKG_FLAGS="--flags=enablewebtests"
     compiler: ": #GHC 7.10.3"
     addons: {apt: {packages: [cabal-install-1.22,ghc-7.10.3,happy-1.19.5,alex-3.1.7], sources: [hvr-ghc]}}
@@ -50,23 +34,13 @@ matrix:
 
   # Stack builds. Can pass in arbitrary Stack arguments via the ARGS
   # variable, such as using --stack-yaml to point to a different file.
-  #- env: BUILD=stack ARGS=""
-  #  compiler: ": #stack default"
-  #  addons: {apt: {packages: [libgmp-dev]}}
-
-  #- env: BUILD=stack ARGS="--resolver lts-2"
-  #  compiler: ": #stack 7.8.4"
-  #  addons: {apt: {packages: [libgmp-dev]}}
-
-  #- env: BUILD=stack ARGS="--resolver lts-3"
-  #  compiler: ": #stack 7.10.2"
-  #  addons: {apt: {packages: [libgmp-dev]}}
 
   - env: BUILD=stack ARGS="--resolver lts-6" GHCVER=7.10.3 CABALVER=1.22 PKG_FLAGS="--flag hup:enablewebtests"
     compiler: ": #stack 7.10.3"
     addons: {apt: {packages: [libgmp-dev,cabal-install-1.22,ghc-7.10.3], sources: [hvr-ghc]}}
 
-  - env: BUILD=stack ARGS="--resolver lts-7" GHCVER=7.10.3 CABALVER=1.22 PKG_FLAGS="--flag hup:enablewebtests"
+# use this one for github release
+  - env: BUILD=stack ARGS="--resolver lts-7" RELEASE="true" GHCVER=7.10.3 CABALVER=1.22 PKG_FLAGS="--flag hup:enablewebtests"
     compiler: ": #stack 8.0.1"
     addons: {apt: {packages: [libgmp-dev,cabal-install-1.22,ghc-7.10.3], sources: [hvr-ghc]}}
 
@@ -75,15 +49,10 @@ matrix:
     addons: {apt: {packages: [libgmp-dev,cabal-install-1.22,ghc-7.10.3], sources: [hvr-ghc]}}
 
   # Build on macOS in addition to Linux
-  - env: BUILD=stack ARGS="" PKG_FLAGS="--flag hup:enablewebtests" 
-    compiler: ": #stack default osx"
-    os: osx
-
-# osx build too slow on Travis, leaving it out.
-#  - env: BUILD=stack ARGS="--resolver lts-6" PKG_FLAGS="--flag hup:enablewebtests" 
-#    compiler: ": #stack 7.10.3 osx"
-#    os: osx
-
+  #- env: BUILD=stack ARGS="" PKG_FLAGS="--flag hup:enablewebtests" 
+  #  compiler: ": #stack default osx"
+  #  os: osx
+  # Nope. Failing, and I don't have time to work out why.
 
 
 before_install:
@@ -146,6 +115,11 @@ script:
     stack)
       stack --no-terminal $ARGS test --bench --no-run-benchmarks --haddock --no-haddock-deps
       stack --no-terminal $ARGS exec hup -- --version
+      stack $ARGS install
+      cd /tmp && stack unpack void-0.7.2
+      cd /tmp/void-0.7.2 && stack $ARGS init && stack setup && stack build && hup packbuild && hup docbuild
+      tar tf /tmp/void-0.7.2/void-0.7.2.tar.gz
+      tar tf /tmp/void-0.7.2/void-0.7.2-docs.tar.gz
       ;;
     cabal)
       cabal install --flags="enablewebtests" --enable-tests --enable-benchmarks --force-reinstalls --ghc-options=-O0 --reorder-goals --max-backjumps=-1 $CABALARGS $PACKAGES
@@ -193,3 +167,4 @@ deploy:
     tags: true
     all_branches: true
     repo: phlummox/hup
+    condition: $RELEASE = true
