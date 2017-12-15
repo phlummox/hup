@@ -22,10 +22,9 @@ import Control.Monad
 import qualified Data.ByteString.Builder as Bu
 import Data.List                        (dropWhileEnd)
 import Data.Maybe                       (fromJust)
-import Data.ByteString.Char8            (pack,unpack,putStrLn,ByteString(..) )
+import Data.ByteString.Char8            (pack,ByteString )
 import qualified Data.ByteString.Lazy.Char8 as LBS 
 import qualified Data.ByteString.Lazy as L (ByteString)
-import qualified Data.ByteString as BS 
 import Data.Monoid                      ( (<>) )
 import qualified Network.HTTP.Client as C
 import Network.HTTP.Client              (requestHeaders, Request, RequestBody(..)
@@ -40,6 +39,7 @@ import Network.HTTP.Client.MultipartFormData
 import Distribution.Hup.Types 
 -- for re-export
 
+import Control.Exception
 
 
 #if MIN_VERSION_http_client(0,4,30)
@@ -156,15 +156,19 @@ buildRequest serverUrl upl userAuth  =
           let url = getUploadUrl serverUrl upl
           putDocs url filePath fileConts userAuth
 
--- | Send an HTTP request and get the response.
--- 
--- May throw an exception on network errors etc., but not on
--- a non-2XX response (e.g. a 404).
-sendRequest
-  :: Request -> IO Response
-sendRequest req = do
-  man <- C.newManager tlsManagerSettings
-  mkResponse <$> C.httpLbs req man
+-- | Send an HTTP request and get the response (or an exception)
+sendRequest :: Request -> IO (Either C.HttpException Response) 
+sendRequest req = 
+  do
+    man <- C.newManager tlsManagerSettings
+    tryHttp (mkResponse <$> C.httpLbs req man) 
+  where
+    --idHttp :: (C.HttpException -> IO a) -> (C.HttpException -> IO a) 
+    --idHttp = id
+
+    tryHttp ::  IO a -> IO (Either C.HttpException a) 
+    tryHttp = try
+
 
 
 
