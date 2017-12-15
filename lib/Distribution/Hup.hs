@@ -42,6 +42,5 @@ module Distribution.Hup
 
 import Distribution.Hup.BuildTar 
 import Distribution.Hup.Parse
-import Distribution.Hup.Types
 import Distribution.Hup.Upload
 

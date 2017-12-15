@@ -12,7 +12,6 @@ module Distribution.Hup.Parse (
 
 import Control.Monad.Except       (MonadError(..),when)
 
-import Data.ByteString.Lazy.Char8 (pack)
 import Data.Char                  (isDigit, toLower, isSpace)
 import Data.List                  (dropWhileEnd,isSuffixOf,stripPrefix
                                   ,intercalate)
@@ -122,7 +121,7 @@ extractCabal :: String -> String -> String
 extractCabal find = f . words . replace ":" " : "
     where
         f (name:":":val:_) | map toLower find == map toLower name = val
-        f (x:xs) = f xs
+        f (_x:xs) = f xs
         f [] = error "Failed to find the Cabal key " ++ find
 
 -- | Inspect the name of a .tar.gz file to work out the package name 
@@ -136,9 +135,9 @@ parseTgzFilename f = do
   (base, ext) <- return $ splitExtension base 
   ext `shouldBe` ".tar"
   base        <- return $ snd $ splitFileName base
-  let isDocco = if "-docs" `isSuffixOf` base
-                then IsDocumentation 
-                else IsPackage
+  --let isDocco = if "-docs" `isSuffixOf` base
+  --              then IsDocumentation 
+  --              else IsPackage
   (base, isDocco) <- return $ if "-docs" `isSuffixOf` base
                               then let base' = intercalate "-" $ 
                                                init $ splitOn "-" base
