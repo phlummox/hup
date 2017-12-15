@@ -155,10 +155,16 @@ before_deploy:
     cp $distdir/$SRC_TGZ .;
   fi
 - ls -al "$SRC_TGZ"; true
+- cp ~/.local/bin/hup .
+- tar cf hup_x86_64.tgz --gzip hup
+- ls -al hup_x86_64.tgz
+
 
 deploy:
   provider: releases
-  file: "$SRC_TGZ"
+  file: 
+  - "$SRC_TGZ"
+  - hup_x86_64.tgz
   skip_cleanup: true
   # overwrite: true
   api_key:
