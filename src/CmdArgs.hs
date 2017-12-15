@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# OPTIONS_GHC -fno-cse #-}
 {-# OPTIONS_GHC -fno-warn-missing-fields #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module CmdArgs where
 
@@ -13,6 +14,34 @@ import System.Environment      (getArgs, withArgs)
 import qualified DefaultServerUrl
 import CmdArgs.PatchHelp (cmdArgs)
 
+isDoc :: HupCommands -> Bool
+isDoc cmd = case cmd of
+  Docbuild {} -> True
+  Docboth {} -> True
+  _           -> False
+
+isBuild :: HupCommands -> Bool
+isBuild cmd = case cmd of
+  Docbuild {}   -> True
+  Packbuild {}  -> True
+  _             -> False
+
+isBoth :: HupCommands -> Bool
+isBoth cmd = case cmd of
+  Docboth {}  -> True
+  Packboth {} -> True
+  _           -> False
+
+isUp :: HupCommands -> Bool
+isUp cmd = case cmd of
+  Docup {} -> True
+  Packup {} -> True
+  _         -> False
+
+
+
+
+defaultServer :: String
 defaultServer = DefaultServerUrl.defaultServerUrl 
 
 -- | Actions the program can perform
@@ -33,6 +62,8 @@ data HupCommands =
               , candidate :: Bool
               , user     :: Maybe String 
               , password :: Maybe String  }
+
+  | Packbuild { verbose :: Bool }
               
   | Packup    { verbose  :: Bool 
               , server   :: String
@@ -40,6 +71,14 @@ data HupCommands =
               , user     :: Maybe String 
               , password :: Maybe String
               , file     :: String }
+
+  | Packboth  { verbose  :: Bool 
+              , server   :: String
+              , candidate :: Bool
+              , user     :: Maybe String 
+              , password :: Maybe String
+              }
+
   | Docup     { verbose  :: Bool 
               , server   :: String 
               , candidate :: Bool
@@ -56,22 +95,36 @@ isUpload x           = Just x
 -- arguments.
 
 {-# INLINE serverArg #-}
+serverArg :: Data val => val -> val
 serverArg x = x &= typ  "URL"
 
 {-# INLINE userArg #-}
+userArg :: Data val => val -> val
 userArg   x = x &= typ  "USER"
 
 {-# INLINE passwdArg #-}
+passwdArg :: Data val => val -> val
 passwdArg x = x &= typ  "PASSWORD"
 
 {-# INLINE fileArg #-}
+fileArg :: Data val => val -> val
 fileArg x = x &= typ "FILE" 
 
 {-# INLINE verbArgs #-}
+verbArgs :: Data val => val -> val
 verbArgs x = x &= help "be verbose" 
 
 -- commands that can be run
 
+packbuild :: HupCommands
+packbuild =
+  Packbuild
+    { verbose     = verbArgs  def
+    }
+      &= help     "Build source distribution .tgz for a package."
+
+
+packup :: HupCommands
 packup = 
   Packup
     { verbose    = verbArgs   def
@@ -81,8 +134,20 @@ packup =
       ,user      = userArg    Nothing  
       ,password  = passwdArg  Nothing }
        &= help     (unwords   ["Upload FILE as a package (or"
-                                              ,"candidate package)."])
+                               ,"candidate package)."])
 
+packboth :: HupCommands
+packboth =
+  Packboth
+    { verbose    = verbArgs   def
+      ,server    = serverArg  defaultServer  
+      ,candidate =            def  
+      ,user      = userArg    Nothing  
+      ,password  = passwdArg  Nothing }
+       &= help     (unwords   ["Build source distribution .tgz and upload"
+                               ,"as package (or candidate package)."])
+
+docbuild :: HupCommands
 docbuild = 
   Docbuild
     { verbose     = verbArgs  def
@@ -100,6 +165,7 @@ docbuild =
      }
       &= help     "Build documentation for a package."
 
+docup :: HupCommands
 docup =
   Docup 
     { server = serverArg  defaultServer 
@@ -107,21 +173,25 @@ docup =
      }
      &= help "Upload FILE as documentation."
 
+docboth :: HupCommands
 docboth = 
   Docboth 
     {}
     &= help "Build and upload documentation for a package."
 
 -- Process command-line arguments
+processArgs :: IO HupCommands
 processArgs = do
    args <- getArgs
-    -- If the user did not specify any arguments, pretend as "--help" was given
+    -- If the user did not specify any arguments, pretend "--help" was given
    (if null args then withArgs ["--help"] else id) proc
 
   where 
   proc :: IO HupCommands
   proc = cmdArgs $ -- commands that can be run, i.e. "modes"
-           modes [packup  
+           modes [packbuild
+                 ,packup  
+                 ,packboth
                  ,docbuild -- &= groupname "A" 
                  ,docup    -- &= groupname "B"
                  ,docboth ]  -- &= groupname "C"] 
