@@ -1,4 +1,4 @@
-# hup [![Hackage version](https://img.shields.io/hackage/v/hup.svg?label=Hackage)](https://hackage.haskell.org/package/hup) [![Linux Build Status](https://img.shields.io/travis/phlummox/hup.svg?label=Linux%20build)](https://travis-ci.org/phlummox/hup) [![Windows Build Status](https://img.shields.io/appveyor/ci/phlummox/hup.svg?label=Windows%20build)](https://ci.appveyor.com/project/phlummox/hup)
+# hup [![Hackage version](https://img.shields.io/hackage/v/hup.svg?label=Hackage)](https://hackage.haskell.org/package/hup) [![Linux Build Status](https://img.shields.io/travis/phlummox/hup.svg?label=Linux%20build)](https://travis-ci.org/phlummox/hup) 
 
 Small program for building and uploading packages and documentation
 built with `stack` to a hackage server; a Haskellified version of
