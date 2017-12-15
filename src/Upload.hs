@@ -23,8 +23,11 @@ import Distribution.Hup.Parse             (rstrip, lstrip,takeWhileEnd )
 doUpload :: String -> Upload -> Maybe Auth -> IO (Either String String)
 doUpload server upl userAuth = do
   req <- buildRequest server upl userAuth
-  displayResponse `liftM` sendRequest req
-
+  maybeResp <- sendRequest req
+  case maybeResp of
+    Left exception -> return $ Left $ 
+      "Request failed with a network exception: " ++ show exception
+    Right resp -> return $ displayResponse resp
 
 
 -- | Turn a 'Response' into some sort of hopefully useful error message
