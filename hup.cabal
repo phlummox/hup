@@ -1,7 +1,7 @@
 name:                hup
 version:             0.3.0.0
 synopsis:            Upload packages or documentation to a hackage server
-description:         
+description:
   Upload packages or documentation to a hackage server
   .
   See README for details.
@@ -11,11 +11,17 @@ license-file:        LICENSE
 author:              phlummox
 maintainer:          phlummox2@gmail.com
 copyright:           phlummox 2016, others where indicated
-category:            Distribution, Web, Documentation  
+category:            Distribution, Web, Documentation
 build-type:          Simple
-tested-with:         GHC == 8.0.1, GHC == 7.10.3 
+tested-with:         GHC == 7.10.3, GHC == 8.0.1, GHC == 8.2.2
 cabal-version:       >=1.10
-extra-source-files:  README.md, stack.yaml, ChangeLog.md 
+
+extra-source-files:
+    README.md
+  , ChangeLog.md
+  , stack-lts-3.yaml
+  , stack-lts-7.yaml
+  , stack-lts-11.yaml
 
 Flag EnableWebTests
   Description: Enable tests that do a (pretty minimal) check by running an actual
@@ -23,16 +29,38 @@ Flag EnableWebTests
   Default:     False
   Manual:      True
 
+Flag PatchHelpMessage
+  Description:
+    Use patched version of cmdargs-0.10.14.1 with more informative help
+    message. The patched version will need to be pulled from github
+    (or a stack.yaml file must point to it) - see stack.yaml for details.
+  Default:     False
+  Manual:      True
+
+Flag ExtraGhcWarnings
+  Description: Enable extra ghc warnings
+  Default:     True
+  Manual:      True
+
+-- This enables (or disables) tests that rely on
+-- stack at runtime. (viz, tests using doctest.)
+-- You can enable these tests from stack using
+-- `--flag hup:BuildStackBasedTests`
+Flag BuildStackBasedTests
+  Description: Enable tests requiring stack
+  Manual:      True
+  Default:     False
+
 
 library
   hs-source-dirs:      lib
-  exposed-modules:     
+  exposed-modules:
       Distribution.Hup
     , Distribution.Hup.BuildTar
     , Distribution.Hup.Parse
     , Distribution.Hup.Types
     , Distribution.Hup.Upload
-  build-depends:       
+  build-depends:
       base >= 4.7 && < 5
     , bytestring
     , directory
@@ -45,21 +73,32 @@ library
     , tar
     , zlib
   default-language:    Haskell2010
-
-
-Flag PatchHelpMessage
-  Description:
-    Use patched version of cmdargs-0.10.14.1 with more informative help
-    message. The patched version will need to be pulled from github
-    (or a stack.yaml file must point to it) - see stack.yaml for details.
-  Default:     False
-  Manual:      True
+  if flag(ExtraGhcWarnings)
+    if impl(ghc >= 8.0.1)
+      -- -new-style warn options, plus
+      -- can use a few new warnings
+      ghc-options:  -Wall
+                    -Wcompat
+                    -Wincomplete-record-updates
+                    -Wincomplete-uni-patterns
+                    -Wredundant-constraints
+                    -Wno-name-shadowing
+                    -Wno-orphans
+                    -Wno-type-defaults
+                    -fwarn-tabs
+    else
+      ghc-options:  -Wall
+                    -fno-warn-name-shadowing
+                    -fwarn-incomplete-record-updates
+                    -fwarn-incomplete-uni-patterns
+                    -fno-warn-type-defaults
+                    -fwarn-tabs
 
 
 executable hup
   hs-source-dirs:      src
   main-is:             Main.hs
-  other-modules:       
+  other-modules:
       CmdArgs
     , CmdArgs.PatchHelp
     , DefaultServerUrl
@@ -72,21 +111,44 @@ executable hup
   if flag(PatchHelpMessage)
     other-modules: CmdArgs.PatchHelp
     cpp-options:   -DPATCH_HELP
-    build-depends: cmdargs == 0.10.14.1 
-  else     
-    build-depends: cmdargs  
+    build-depends: cmdargs == 0.10.14.1
+  else
+    build-depends: cmdargs
   default-language:    Haskell2010
-  build-depends:       
-      base 
+  build-depends:
+      base
     , bytestring
-    , directory 
+    , directory
     , mtl
     , shelly >= 1.6.6
     , tagsoup
-    -- , temporary >= 1.2.1
     , text
     , transformers
     , hup
+  ghc-options:    -threaded
+                  -rtsopts
+                  -with-rtsopts=-N
+  if flag(ExtraGhcWarnings)
+    if impl(ghc >= 8.0.1)
+      -- -new-style warn options, plus
+      -- can use a few new warnings
+      ghc-options:  -Wall
+                    -Wcompat
+                    -Wincomplete-record-updates
+                    -Wincomplete-uni-patterns
+                    -Wredundant-constraints
+                    -Wno-name-shadowing
+                    -Wno-orphans
+                    -Wno-type-defaults
+                    -fwarn-tabs
+    else
+      ghc-options:  -Wall
+                    -fno-warn-name-shadowing
+                    -fwarn-incomplete-record-updates
+                    -fwarn-incomplete-uni-patterns
+                    -fno-warn-type-defaults
+                    -fwarn-tabs
+
 
 test-suite hup-spec
   type:                exitcode-stdio-1.0
@@ -103,12 +165,34 @@ test-suite hup-spec
     , hspec
     , hspec-core
     , QuickCheck
-    , simple 
+    , simple
     , temporary
     , transformers
     , wai
     , wai-extra
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  ghc-options:      -threaded
+                    -rtsopts
+                    -with-rtsopts=-N
+  if flag(ExtraGhcWarnings)
+    if impl(ghc >= 8.0.1)
+      -- -new-style warn options, plus
+      -- can use a few new warnings
+      ghc-options:  -Wall
+                    -Wcompat
+                    -Wincomplete-record-updates
+                    -Wincomplete-uni-patterns
+                    -Wredundant-constraints
+                    -Wno-name-shadowing
+                    -Wno-orphans
+                    -Wno-type-defaults
+                    -fwarn-tabs
+    else
+      ghc-options:  -Wall
+                    -fno-warn-name-shadowing
+                    -fwarn-incomplete-record-updates
+                    -fwarn-incomplete-uni-patterns
+                    -fno-warn-type-defaults
+                    -fwarn-tabs
   default-language:    Haskell2010
   other-modules:
       Distribution.Hup.WebTest
@@ -116,6 +200,7 @@ test-suite hup-spec
     , Distribution.Hup.Parse.Test
     , Distribution.Hup.UploadSpec
     , Distribution.Hup.Upload.Test
+    , Distribution.Hup.Upload.MockWebApp
   if flag(EnableWebTests)
     build-depends:
         network
@@ -128,18 +213,24 @@ test-suite hup-spec
       , warp
     cpp-options:         -DWEB_TESTS
 
-
+-- **
+-- - Only runs using stack, so is disabled
+--   by default
+-- - Doesn't seem to run w/ lts-3 ... possibly
+--   a bug in doctest, who knows
 test-suite hup-doctest
   type:                exitcode-stdio-1.0
   hs-source-dirs:      src-doctest
   main-is:             DocTest.hs
-  build-depends:       base
-                     , hup
-                     , doctest
-                     , Glob
+  if !(flag(BuildStackBasedTests))
+    buildable: False
+  else
+   build-depends:       base
+                      , hup
+                      , doctest
+                      , Glob
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
-
 
 source-repository head
   type:     git
