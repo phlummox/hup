@@ -1,0 +1,26 @@
+resolver: lts-3.7
+
+packages:
+- '.'
+# only needed for special patched
+# cmdargs with extra help info
+#- location:
+#     git: https://github.com/phlummox/cmdargs
+#     commit:  39e08514ad470c48c82cb42ef3987455c81727de
+#  extra-dep: true
+
+extra-deps:
+# not sure why I'm using this version of shelly -
+# must've wanted some feature not found in lts-3
+# version
+- shelly-1.6.8.1
+# "simple" and "simple-templates" are only in stackage from lts 4.2
+- simple-0.11.1
+- simple-templates-0.8.0.1
+
+# to enable test code:
+# flags:
+#  hup: #{}
+#    PatchHelpMessage: true
+#    EnableWebTests: true
+
