@@ -2,20 +2,15 @@
 
 module Distribution.Hup.UploadSpec where
 
-
-
-
 import Control.Exception                      (throwIO)
 import Control.Monad
-import Control.Monad.IO.Class                 (liftIO)
+import Control.Monad.IO.Class                 (liftIO, MonadIO)
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as LBS   --   pack
 import Data.Maybe                             (fromJust)
 import Data.Monoid                            ( (<>) )
 import Network.HTTP.Client.MultipartFormData  (renderParts,webkitBoundary)
-import Network.HTTP.Types as T                (statusCode,methodPost
-                                              ,StdMethod(..)) 
-import Network.Wai.Parse as Parse             (FileInfo(..), fileName)
+import Network.HTTP.Types as T                (statusCode,methodPost)
 import Network.Wai.Test                       (simpleStatus,SResponse
                                               ,simpleBody)
 import Test.Hspec
@@ -23,45 +18,49 @@ import qualified Test.Hspec.Wai as HWai       --(put, request)
 import Test.Hspec.Wai.Internal                --(WaiSession,runWaiSession)
 import Test.QuickCheck                        --(forAll)
 import Test.QuickCheck.Monadic                --(assert, run, monadicIO )
-import Web.Simple --(Application,controllerApp, ControllerT,Controller,ok,parseForm, queryParam, rawPathInfo, request, respond, routeMethod, routePattern)
 
 
-import Distribution.Hup.Upload  
-import Distribution.Hup.Parse 
+import Distribution.Hup.Parse
 import Distribution.Hup.Parse.Test
+import Distribution.Hup.Upload
+import Distribution.Hup.Upload.MockWebApp (webApp)
 
-import qualified Distribution.Hup.WebTest 
+import qualified Distribution.Hup.WebTest
 
-type ParsedTgz = Either String (IsDocumentation, Package) 
+type ParsedTgz = Either String (IsDocumentation, Package)
 
 
 -- `main` is here so that this module can be run from GHCi on its own.  It is
 -- not needed for automatic spec discovery.
 main :: IO ()
-main = 
-  hspec spec 
+main =
+  hspec spec
 
 spec :: Spec
 spec = do
-  describe "testing with mocked requests" $ 
+  describe "testing with mocked requests" $
     describe "mocked requests" $
-      context "when processed by a mock hackage server" $ 
-        it "should go to the right web app path" 
-          httpMetadataRoundtripsOK'  
-  describe "testing with live HTTP requests" $ 
+      context "when processed by a mock hackage server" $
+        it "should go to the right web app path"
+          httpMetadataRoundtripsOK'
+  describe "testing with live HTTP requests" $
     -- this will be replaced with a stub unless the WEB_TESTS macro
     -- is defined.
+    --
+    -- 'webApp' is a very simple web application
+    -- intended to mock some of the behaviour of a
+    -- hackage server.
     Distribution.Hup.WebTest.liveTest webApp
 
 
+httpMetadataRoundtripsOK' :: Property
+httpMetadataRoundtripsOK' =
+  forAll arbUpload $ \upl -> httpMetadataRoundtripsOK upl
 
-httpMetadataRoundtripsOK' = 
-  forAll arbUpload $ \upl -> httpMetadataRoundtripsOK upl 
-
-
-httpMetadataRoundtripsOK upl = monadicIO $ do 
+httpMetadataRoundtripsOK :: Upload -> Property
+httpMetadataRoundtripsOK upl = monadicIO $ do
   upl <- return $ upl { fileConts = Just "" }
-  testRequest <- run $ buildTestRequest "" upl 
+  testRequest <- run $ buildTestRequest "" upl
   testResponse <- run $ sendTestRequest testRequest
 
   let resStatus = T.statusCode $ simpleStatus testResponse
@@ -81,26 +80,20 @@ httpMetadataRoundtripsOK upl = monadicIO $ do
 
 
 sendTestRequest :: WaiSession SResponse -> IO SResponse
-sendTestRequest testReq =   
+sendTestRequest testReq =
   runWaiSession testReq webApp
 
---showInd x =
---  indent 4 (show x) 
---
---indent n = 
---  let wspace = replicate n ' ' 
---  in  unlines .  (map (wspace ++)) . lines
 
 testPut :: String -> LBS.ByteString -> WaiSession SResponse
-testPut url conts = 
+testPut url conts =
   HWai.put (BS.pack url) conts
 
 testPost
   :: String -> FilePath -> LBS.ByteString -> IO (WaiSession SResponse)
 testPost url fileName fileConts = do
-  boundary <- webkitBoundary 
+  boundary <- webkitBoundary
   let part    = mkPart fileName fileConts
-      headers = [("Content-Type", 
+      headers = [("Content-Type",
                     "multipart/form-data; boundary=" <> boundary)]
   body <- bodyToByteString <$> renderParts boundary [part]
   return $ HWai.request T.methodPost (BS.pack url) headers body
@@ -114,58 +107,15 @@ buildTestRequest serverUrl upl  = do
       url = getUploadUrl serverUrl upl
   fileConts <- return (fromJust fileConts)
   case uploadType of
-      IsPackage -> 
+      IsPackage ->
          testPost url filePath fileConts
-      IsDocumentation -> 
-         return $ testPut url fileConts 
+      IsDocumentation ->
+         return $ testPut url fileConts
 
-
-ioAssert pred mesg = 
+ioAssert :: MonadIO f => Bool -> String -> f ()
+ioAssert pred mesg =
   unless pred $
         liftIO $ throwIO $ userError mesg
-
--- | We send the parsed results back as plain text,
--- parseable by 'Text.Read.read'.
-webApp :: Application
-webApp = controllerApp () $ do
-    myReq <- request 
-    routeMethod T.POST $ do path <- rawPathInfo <$> request
-                            let isCand = if "/candidates/" `BS.isSuffixOf`path
-                                         then CandidatePkg
-                                         else NormalPkg  
-                            when (path == "/packages/" || 
-                                 path == "/packages/candidates/") $ do
-                                    (_params, files) <- parseForm
-                                    handlePost isCand files
-    routeMethod T.PUT $ routePattern "/package/:pkgVer/:isCand" $ do
-                            pkgVer <- fromJust <$> queryParam "pkgVer"  
-                            let filename = pkgVer :: String
-                            isCand <- fromJust <$> queryParam "isCand" 
-                            let isCand' = if ("candidate" :: String) == isCand
-                                         then CandidatePkg
-                                         else NormalPkg
-                            let remainingBit = if "candidate"== isCand
-                                          then "docs"
-                                          else ""
-                            routePattern remainingBit $ 
-                              handlePut isCand' filename
-  where 
-    handlePost :: IsCandidate -> [(a, FileInfo c)] -> ControllerT s IO b
-    handlePost isCand files = do
-      ioAssert (length files == 1)
-               "posted package should have exactly 1 file" 
-      let filename = BS.unpack $ Parse.fileName $ snd $ head files
-          parsed :: Either String (IsDocumentation, Package)  
-          parsed = parseTgzFilename' filename
-      respond $ ok "text/plain" $ LBS.pack $ show (IsPackage, isCand, parsed)
-
-    handlePut :: IsCandidate -> FilePath -> Controller s a
-    handlePut isCand filename = do
-      let parsed :: Either String (IsDocumentation, Package)  
-          parsed = parseTgzFilename' (filename ++ "-docs.tar.gz")
-      respond $ ok "text/plain" $ LBS.pack $ 
-                show (IsDocumentation, isCand, parsed)
-
 
 
 
