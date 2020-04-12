@@ -1,16 +1,13 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE CPP #-}
 
 module Distribution.Hup.WebTest where
 
 
-import Distribution.Hup.Upload                (sendRequest)  
+import Distribution.Hup.Upload                (sendRequest)
 import Distribution.Hup.Upload.Test
-import Distribution.Hup.Parse 
 import Network.Wai                            (Application)
 import Test.Hspec
 import Test.Hspec.Core.QuickCheck             (modifyMaxSuccess)
-import Test.QuickCheck
 
 #ifdef WEB_TESTS
 
@@ -23,12 +20,13 @@ import Network.Wai.Handler.Warp               (Port, defaultSettings
 #if MIN_VERSION_warp(3,2,4)
 import qualified Network.Wai.Handler.Warp as Warp  (openFreePort)
 
+openFreePort :: IO (Port, Soc.Socket)
 openFreePort = Warp.openFreePort
 #else
 import Network.Socket
 
 openFreePort :: IO (Port, Soc.Socket)
-openFreePort = do 
+openFreePort = do
   s <- socket AF_INET Stream defaultProtocol
   localhost <- inet_addr "127.0.0.1"
   bind s (SockAddrInet aNY_PORT localhost)
@@ -45,28 +43,32 @@ forceEither (Right x) = x
 
 startServer :: Application -> IO (Port, Soc.Socket, ThreadId)
 startServer webApp = do
-  (port, sock) <- openFreePort 
+  (port, sock) <- openFreePort
   tid <- forkIO $ runSettingsSocket defaultSettings sock webApp
-  return (port, sock, tid) 
+  return (port, sock, tid)
 
 shutdownServer :: (Port, Soc.Socket, ThreadId) -> IO ()
-shutdownServer (_port, sock, _tid) = 
+shutdownServer (_port, sock, _tid) =
   Soc.close sock
 
 liveTest :: Application -> SpecWith ()
 liveTest webApp = do
-    beforeAll (startServer webApp) $ afterAll shutdownServer $ 
+    beforeAll (startServer webApp) $ afterAll shutdownServer $
       describe "buildRequest" $ do
-        context "when its result is fed into sendRequest" $ 
+        context "when its result is fed into sendRequest" $
           modifyMaxSuccess (const 50) $
-            it "should send to the right web app path" $ \(port, sock, tid) -> 
+            it "should send to the right web app path" $ \(port, _sock, _tid) ->
               httpRoundTripsOK' sendRequest' port
 
-        context "when given a bad URL" $ 
+        context "when given a bad URL" $
           modifyMaxSuccess (const 50) $
-            it "should not throw an exception" $ \(port, sock, tid) -> 
+            it "should not throw an exception" $ \(port, _sock, _tid) ->
               badUrlReturns' sendRequest' port
 
+{-
+sendRequest' :: http-client-0.5.5:Network.HTTP.Client.Types.Request
+                -> IO Distribution.Hup.Upload.Response
+-}
 sendRequest' req = forceEither <$> sendRequest req
 
 

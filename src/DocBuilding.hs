@@ -11,12 +11,12 @@ haddock docs properly built.
 
 -}
 
-module DocBuilding 
+module DocBuilding
 (
 -- * given a 'HupCommand', what arguments are needed
     verbosityArgs
-  , haddockExtraArgs 
-  , cabalExtraArgs 
+  , haddockExtraArgs
+  , cabalExtraArgs
 -- * actions
   , buildDependencyDocs
   , cabalConfigure
@@ -29,7 +29,7 @@ module DocBuilding
 )
 where
 
-import CmdArgs                    (HupCommands(..), isUpload, processArgs)
+import CmdArgs                    (HupCommands(..))
 import Data.Text                  ( Text )
 import qualified Data.Text as T
 import Data.Monoid                ( (<>) )
@@ -37,14 +37,14 @@ import Shelly.Lifted
 import Data.Char                  (isSpace)
 import Prelude        hiding      (FilePath)
 import Control.Monad.IO.Class     ( MonadIO(..) )
-import qualified Stack 
+import qualified Stack
 import Distribution.Hup           ( Package(..), buildTar )
 import Control.Exception
-import Shelly                     ( ReThrownException ) 
+import Shelly                     ( ReThrownException )
 
 -- | just a convenience alias, short for @'MonadIO' m, 'MonadSh' m,
 --  'MonadShControl' m@
-type MonadShellish m = (MonadIO m, MonadSh m, MonadShControl m) 
+type MonadShellish m = (MonadIO m, MonadSh m, MonadShControl m)
 
 rstrip :: Text -> Text
 rstrip = T.dropWhileEnd isSpace
@@ -53,13 +53,13 @@ rstrip = T.dropWhileEnd isSpace
 -- | any arguments for cabal deriving from how verbose
 -- we've been asked to be
 verbosityArgs :: HupCommands -> [Text]
-verbosityArgs hc = if verbose hc then ["-v2"] else [] 
+verbosityArgs hc = if verbose hc then ["-v2"] else []
 
 -- | arguments to supply directly to haddock, such as "--executables",
 -- "--internal", or anything specified by the end user
 haddockExtraArgs :: HupCommands -> [Text]
-haddockExtraArgs hc = 
-  let args = haddockArgs hc 
+haddockExtraArgs hc =
+  let args = haddockArgs hc
   in (if null args
      then []
      else ["--haddock-options=" <>T.pack(haddockArgs hc)])
@@ -75,7 +75,7 @@ cabalExtraArgs hc = if tests hc then ["--enable-tests"] else []
 
 -- | run haddock with "--only-dependencies"
 buildDependencyDocs :: MonadSh m => m ()
-buildDependencyDocs = do
+buildDependencyDocs =
   run_ "stack" ["haddock", "--only-dependencies"]
 
 -- | given a "base" dir, return the "dist" subdir
@@ -91,33 +91,33 @@ cabalConfigure
   :: MonadShellish m =>
      FilePath -> [Text] -> [Text] -> m ()
 cabalConfigure baseDir cabalExtraArgs verbosityArgs =  do
-  let tt = toTextIgnore 
+  let tt = toTextIgnore
   snapshotpkgdb <- rstrip <$> silently (run "stack" ["path", "--snapshot-pkg-db"])
   localpkgdb    <- rstrip <$> silently (run "stack" ["path", "--local-pkg-db"])
-  run_ "cabal" $ ["configure", "--builddir="<> tt (buildDir baseDir), 
-                  "--package-db=clear", "--package-db=global", 
-                  "--package-db=" <> snapshotpkgdb, 
-                  "--package-db=" <> localpkgdb] ++ verbosityArgs 
+  run_ "cabal" $ ["configure", "--builddir="<> tt (buildDir baseDir),
+                  "--package-db=clear", "--package-db=global",
+                  "--package-db=" <> snapshotpkgdb,
+                  "--package-db=" <> localpkgdb] ++ verbosityArgs
                   ++ cabalExtraArgs
 
 -- | run "cabal haddock" with appropriate args. Haddock
 -- should be on path.
 --
 -- args: @cabalHaddock baseDir verbosityArgs haddockExtraArgs@
---   
+--
 cabalHaddock
   :: MonadShellish m => FilePath -> [Text] -> [Text] -> m ()
 cabalHaddock baseDir verbosityArgs haddockExtraArgs = do
-  let tt = toTextIgnore 
-  canHyperlink <- Stack.haddockCanHyperlinkSrc 
+  let tt = toTextIgnore
+  canHyperlink <- Stack.haddockCanHyperlinkSrc
   let hyperlinkArgs = if canHyperlink
                       then ["--haddock-option=--hyperlinked-source"]
                       else []
-  run_ "cabal" $ ["haddock", "--builddir=" <> tt (buildDir baseDir),  
+  run_ "cabal" $ ["haddock", "--builddir=" <> tt (buildDir baseDir),
                   "--html-location=/package/$pkg-$version/docs",
-                  "--contents-location=/package/$pkg-$version"] 
+                  "--contents-location=/package/$pkg-$version"]
                   ++ hyperlinkArgs ++ verbosityArgs
-                  ++ haddockExtraArgs 
+                  ++ haddockExtraArgs
 
 
 -- | Tar up the html produced by haddock into a "-docs.tar.gz" file.
@@ -129,9 +129,9 @@ doBuildTar baseDir (Package pkg_ ver_) = do
   let
     pkg = T.pack pkg_
     ver = T.pack ver_
-    fromPath = T.unpack . toTextIgnore 
-    docTgz = fromPath $ baseDir </> (pkg<>"-"<>ver <> "-docs.tar.gz") 
-    docDir = pkg <> "-" <> ver <> "-docs" 
+    fromPath = T.unpack . toTextIgnore
+    docTgz = fromPath $ baseDir </> (pkg<>"-"<>ver <> "-docs.tar.gz")
+    docDir = pkg <> "-" <> ver <> "-docs"
   -- build tar using pure hs. or, if you have tar on system, could use:
   --    run "tar" ["cvz", "-C", dir, "--format=ustar", "-f", docTgz,
   --                pkg <> "-" <> ver <> "-docs" ]
@@ -139,7 +139,7 @@ doBuildTar baseDir (Package pkg_ ver_) = do
   return $ fromText $ T.pack docTgz
 
 -- Shelly exceptions end up being (almost) endlessly wrappered IOErrors ...
--- but here's a convenience function for catching what they look like at 
+-- but here's a convenience function for catching what they look like at
 -- the top level.
 catch_sh_rethrown :: Sh a -> (ReThrownException SomeException -> Sh a) -> Sh a
 catch_sh_rethrown = catch_sh
@@ -162,9 +162,9 @@ catch_sh_rethrown = catch_sh
 --
 -- Sample usage:
 --
--- > :set -XOverloadedStrings 
+-- > :set -XOverloadedStrings
 -- > let p = Package "foo" "0.1"
--- > shelly $ verbosely $ buildDocs "." p 
+-- > shelly $ verbosely $ buildDocs "." p
 --
 -- When running from within ghci, you may have to unset some
 -- environment variables that have been set. Else cabal will complain
@@ -177,7 +177,7 @@ catch_sh_rethrown = catch_sh
 buildDocs
   :: MonadShellish m =>
      HupCommands -> FilePath -> Package -> m FilePath
-buildDocs hc tmpDir pkg = 
+buildDocs hc tmpDir pkg =
   do
     unless (quick hc) $ do
       echo "building dependency docs"
@@ -191,7 +191,7 @@ buildDocs hc tmpDir pkg =
     echo "building tar file"
     doBuildTar tmpDir pkg
   where
-    -- copy the html files from where haddock puts them to 
+    -- copy the html files from where haddock puts them to
     -- somewhere we can tar them from.
     copyHtmlDir :: MonadShellish m => Text -> Package -> m ()
     copyHtmlDir baseDir (Package pkg_ ver_) = do
@@ -199,7 +199,7 @@ buildDocs hc tmpDir pkg =
           ver = T.pack ver_
           srcDir = baseDir </> "dist" </> "doc" </> "html" </> pkg
           tgtDir = baseDir </> (pkg <> "-" <> ver <> "-docs")
-      echo $ "copying from " <> (toTextIgnore srcDir) <> " to " <> (toTextIgnore tgtDir)
+      echo $ "copying from " <> toTextIgnore srcDir <> " to " <> toTextIgnore tgtDir
       liftSh $ catch_sh_rethrown (errExit False $ cp_r srcDir tgtDir) $ \e -> do
         echo $ T.unwords ["hup: Encountered exception trying to copy html"
                           , "documentation:", T.pack $ show e ]

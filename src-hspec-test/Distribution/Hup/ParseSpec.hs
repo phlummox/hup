@@ -3,10 +3,13 @@
 module Distribution.Hup.ParseSpec where
 
 import Test.Hspec
+import Test.QuickCheck (Gen, Property)
 import qualified Distribution.Hup.Parse.Test
 
-arbWord =  Distribution.Hup.Parse.Test.arbWord 
+arbWord :: Gen String
+arbWord =  Distribution.Hup.Parse.Test.arbWord
 
+prop_parseTgzFilename_roundtripsOK :: Property
 prop_parseTgzFilename_roundtripsOK =
   Distribution.Hup.Parse.Test.prop_parseTgzFilename_roundtripsOK
 
@@ -17,9 +20,9 @@ main :: IO ()
 main = hspec spec
 
 spec :: Spec
-spec = 
-  describe "parseTgzFilename" $ 
-    it "should round-trip back to original name, version, package type"  
+spec =
+  describe "parseTgzFilename" $
+    it "should round-trip back to original name, version, package type"
       prop_parseTgzFilename_roundtripsOK
 
 

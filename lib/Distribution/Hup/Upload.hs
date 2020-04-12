@@ -3,16 +3,16 @@
 {-# OPTIONS_HADDOCK prune  #-}
 {-# LANGUAGE CPP #-}
 
-{-| 
+{-|
 
 Handle uploading to a hackage server, using the @HTTP@ API described
-in the 
+in the
 <https://hackage.haskell.org/api Hackage server documentation>.
 
 -}
 
 module Distribution.Hup.Upload (
-    module Distribution.Hup.Upload 
+    module Distribution.Hup.Upload
   , module Distribution.Hup.Types
   , Auth(..)
 )
@@ -23,7 +23,7 @@ import qualified Data.ByteString.Builder as Bu
 import Data.List                        (dropWhileEnd)
 import Data.Maybe                       (fromJust)
 import Data.ByteString.Char8            (pack,ByteString )
-import qualified Data.ByteString.Lazy.Char8 as LBS 
+import qualified Data.ByteString.Lazy.Char8 as LBS
 import qualified Data.ByteString.Lazy as L (ByteString)
 import Data.Monoid                      ( (<>) )
 import qualified Network.HTTP.Client as C
@@ -31,24 +31,24 @@ import Network.HTTP.Client              (requestHeaders, Request, RequestBody(..
                                         ,method, requestBody, responseHeaders
                                         ,responseStatus)
 import Network.HTTP.Client.TLS          (tlsManagerSettings)
-import qualified Network.HTTP.Types as T             
-import Network.HTTP.Client.MultipartFormData 
+import qualified Network.HTTP.Types as T
+import Network.HTTP.Client.MultipartFormData
                                         (formDataBody,partFileRequestBodyM
                                         ,Part)
 
-import Distribution.Hup.Types 
+import Distribution.Hup.Types
 -- for re-export
 
 import Control.Exception
 
 
 #if MIN_VERSION_http_client(0,4,30)
---parseRequest :: MonadThrow m => String -> m Request
+parseRequest :: String -> IO Request
 parseRequest = C.parseRequest
 #else
 
---parseRequest :: MonadThrow m => String -> m Request
-parseRequest = 
+parseRequest :: String -> IO Request
+parseRequest =
     fmap noThrow . C.parseUrl
   where
     noThrow req = req { C.checkStatus = \_ _ _ -> Nothing }
@@ -69,19 +69,19 @@ data Auth = Auth {  authUser     :: ByteString
 -- (e.g. to add standard headers, etc.)
 --
 -- Can just use 'defaultOptions'.
-data Options = Options (Request -> Request)
+newtype Options = Options (Request -> Request)
 --  deriving Show
 
 
 
 -- | returns default options to use with
 -- a request.
--- 
--- We try to request plain text where possible; 
+--
+-- We try to request plain text where possible;
 -- and we allow non-success statuses to still return normally
 -- (rather than throwing an exception)
 defaultOptions :: Maybe Auth -> Options
-defaultOptions mAuth = 
+defaultOptions mAuth =
   case mAuth of
     Nothing -> Options id
     Just (Auth user pass) -> Options $ modify . C.applyBasicAuth user pass
@@ -99,36 +99,36 @@ defaultOptions mAuth =
 -- | pack a name and password into an 'Auth' structure
 --
 -- >>> mkAuth "myname" "mypassword"
--- Just (Auth {authUser = "myname", authPassword = "mypassword"}) 
+-- Just (Auth {authUser = "myname", authPassword = "mypassword"})
 mkAuth :: String -> String -> Maybe Auth
 mkAuth name password =
     Just $ Auth (pack name) (pack password)
 
--- | work out what URL to upload a .tgz file to. 
+-- | work out what URL to upload a .tgz file to.
 -- @getUploadUrl server upload@ returns a URL.
 --
 -- >>> getUploadUrl "http://localhost:8080/" $ Upload (Package "foo" "0.1.0.0") "./foo-0.1.0.0.tar.gz" Nothing IsDocumentation CandidatePkg
 -- "http://localhost:8080/package/foo-0.1.0.0/candidate/docs"
 getUploadUrl
   :: String -> Upload -> String
-getUploadUrl server upl  = 
+getUploadUrl server upl  =
 -- TODO:
 -- handle Yackage as well?
---  https://github.com/snoyberg/yackage/blob/master/yackage-upload.hs 
-   let 
+--  https://github.com/snoyberg/yackage/blob/master/yackage-upload.hs
+   let
        -- we are permissive, and drop any extra trailing slashes on server.
-       serverUrl = dropWhileEnd (=='/') server 
+       serverUrl = dropWhileEnd (=='/') server
        (Upload (Package pkgName pkgVer) _filePath _fileConts uploadType pkgType ) = upl
    in case uploadType of
        IsPackage -> case pkgType of
-         NormalPkg       -> serverUrl <>"/packages/"   
+         NormalPkg       -> serverUrl <>"/packages/"
          CandidatePkg    -> serverUrl <>"/packages/candidates/"
        IsDocumentation ->
           case pkgType of
             NormalPkg    -> serverUrl <> "/package/" <> pkgName
                                       <> "-" <> pkgVer <> "/docs"
-            CandidatePkg -> serverUrl <> "/package/" <> pkgName 
-                                      <> "-" <> pkgVer 
+            CandidatePkg -> serverUrl <> "/package/" <> pkgName
+                                      <> "-" <> pkgVer
                                       <> "/candidate/docs"
 
 -- | @buildRequest serverUrl upl userAuth@ - create an HTTP request
@@ -146,7 +146,7 @@ buildRequest :: String -> Upload -> Maybe Auth -> IO Request
 buildRequest serverUrl upl userAuth  =
 -- TODO:
 -- handle Yackage as well?
---  https://github.com/snoyberg/yackage/blob/master/yackage-upload.hs 
+--  https://github.com/snoyberg/yackage/blob/master/yackage-upload.hs
    let (Upload _ filePath fileConts uploadType _pkgType ) = upl
    in case uploadType of
        IsPackage -> do
@@ -157,42 +157,42 @@ buildRequest serverUrl upl userAuth  =
           putDocs url filePath fileConts userAuth
 
 -- | Send an HTTP request and get the response (or an exception)
-sendRequest :: Request -> IO (Either C.HttpException Response) 
-sendRequest req = 
+sendRequest :: Request -> IO (Either C.HttpException Response)
+sendRequest req =
   do
     man <- C.newManager tlsManagerSettings
-    tryHttp (mkResponse <$> C.httpLbs req man) 
+    tryHttp (mkResponse <$> C.httpLbs req man)
   where
-    --idHttp :: (C.HttpException -> IO a) -> (C.HttpException -> IO a) 
+    --idHttp :: (C.HttpException -> IO a) -> (C.HttpException -> IO a)
     --idHttp = id
 
-    tryHttp ::  IO a -> IO (Either C.HttpException a) 
+    tryHttp ::  IO a -> IO (Either C.HttpException a)
     tryHttp = try
 
 
 
 
 -- | Relevant bits of server response, packed into a record
--- for those who don't want to deal with http-clients's 
+-- for those who don't want to deal with http-clients's
 -- 'Network.HTTP.Client.Response' type.
 --
 -- See 'mkResponse'.
-data Response = 
+data Response =
   Response {
       statusCode   :: Int
     , message      :: L.ByteString
     , contentType  :: L.ByteString
-    , responseBody :: L.ByteString  
+    , responseBody :: L.ByteString
   }
   deriving Show
 
--- adapt http-client 'Network.HTTP.Client.Response' type into a 
+-- adapt http-client 'Network.HTTP.Client.Response' type into a
 -- 'Response'
 mkResponse :: HResponse L.ByteString -> Response
-mkResponse resp =  
+mkResponse resp =
   let   code  = (T.statusCode . responseStatus) resp
         mesg  = LBS.fromStrict $ (T.statusMessage . responseStatus) resp
-        ctype = LBS.fromStrict $ fromJust $ lookup "Content-Type" $ 
+        ctype = LBS.fromStrict $ fromJust $ lookup "Content-Type" $
                                 responseHeaders resp
         body  = C.responseBody resp
   in Response code mesg ctype body
@@ -204,11 +204,11 @@ mkResponse resp =
 -- in @conts@ to the URL at @url@, using the user authentication
 -- @userAuth@.
 postPkg
-  :: String -> FilePath -> Maybe L.ByteString -> Maybe Auth -> 
+  :: String -> FilePath -> Maybe L.ByteString -> Maybe Auth ->
      IO Request
 postPkg url fileName fileConts userAuth = do
   let conts :: IO RequestBody
-      conts = RequestBodyLBS `liftM` 
+      conts = RequestBodyLBS `liftM`
                   maybe (LBS.readFile fileName) return fileConts
       (Options opt) = defaultOptions userAuth
       formBody = formDataBody [partFileRequestBodyM "package" fileName conts]
@@ -231,7 +231,7 @@ putDocs url fileName fileConts userAuth = do
                            : requestHeaders x
         , requestBody    = RequestBodyLBS conts
         }
-  (addMore . opt) <$> parseRequest url
+  addMore . opt <$> parseRequest url
 
 -- | given a filename and contents, produce an http-client 'Part'
 -- for uploading as a package to a hackage server
@@ -242,8 +242,8 @@ mkPart fileName fileConts = do
 
 
 -- | Convert a 'RequestBody' to a 'ByteString'.
--- 
--- For testing purposes. Won't work if your 'RequestBody' is set up to do 
+--
+-- For testing purposes. Won't work if your 'RequestBody' is set up to do
 -- streaming (e.g. using the 'RequestBodyStream' constructor/ 'partFileSource').
 bodyToByteString :: RequestBody -> L.ByteString
 bodyToByteString b = case b of

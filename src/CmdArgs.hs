@@ -2,13 +2,12 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# OPTIONS_GHC -fno-cse #-}
 {-# OPTIONS_GHC -fno-warn-missing-fields #-}
-{-# LANGUAGE ViewPatterns #-}
 
 module CmdArgs where
 
 import Data.Version            (showVersion)
 import Paths_hup               (version)
-import System.Console.CmdArgs hiding(cmdArgs)  
+import System.Console.CmdArgs hiding(cmdArgs)
 import System.Environment      (getArgs, withArgs)
 
 import qualified DefaultServerUrl
@@ -42,56 +41,56 @@ isUp cmd = case cmd of
 
 
 defaultServer :: String
-defaultServer = DefaultServerUrl.defaultServerUrl 
+defaultServer = DefaultServerUrl.defaultServerUrl
 
 -- | Actions the program can perform
-data HupCommands = 
+data HupCommands =
     Docbuild  { verbose  :: Bool
                 , executables :: Bool
                 , tests :: Bool
                 , internal :: Bool
-                ,haddockArgs :: String 
+                ,haddockArgs :: String
                 ,quick :: Bool }
-  | Docboth   { verbose  :: Bool 
+  | Docboth   { verbose  :: Bool
               , executables :: Bool
               , tests :: Bool
               , internal :: Bool
-              , haddockArgs :: String 
-              , quick :: Bool 
-              , server   :: String 
+              , haddockArgs :: String
+              , quick :: Bool
+              , server   :: String
               , candidate :: Bool
-              , user     :: Maybe String 
+              , user     :: Maybe String
               , password :: Maybe String  }
 
   | Packbuild { verbose :: Bool }
-              
-  | Packup    { verbose  :: Bool 
+
+  | Packup    { verbose  :: Bool
               , server   :: String
               , candidate :: Bool
-              , user     :: Maybe String 
+              , user     :: Maybe String
               , password :: Maybe String
               , file     :: String }
 
-  | Packboth  { verbose  :: Bool 
+  | Packboth  { verbose  :: Bool
               , server   :: String
               , candidate :: Bool
-              , user     :: Maybe String 
+              , user     :: Maybe String
               , password :: Maybe String
               }
 
-  | Docup     { verbose  :: Bool 
-              , server   :: String 
+  | Docup     { verbose  :: Bool
+              , server   :: String
               , candidate :: Bool
-              , user     :: Maybe String 
+              , user     :: Maybe String
               , password :: Maybe String
               , file     :: String }
       deriving (Show, Eq, Data, Typeable, Ord)
 
 isUpload :: HupCommands -> Maybe HupCommands
 isUpload Docbuild {} = Nothing
-isUpload x           = Just x 
+isUpload x           = Just x
 
--- Helpers for specifying metavariables etc. for 
+-- Helpers for specifying metavariables etc. for
 -- arguments.
 
 {-# INLINE serverArg #-}
@@ -108,11 +107,11 @@ passwdArg x = x &= typ  "PASSWORD"
 
 {-# INLINE fileArg #-}
 fileArg :: Data val => val -> val
-fileArg x = x &= typ "FILE" 
+fileArg x = x &= typ "FILE"
 
 {-# INLINE verbArgs #-}
 verbArgs :: Data val => val -> val
-verbArgs x = x &= help "be verbose" 
+verbArgs x = x &= help "be verbose"
 
 -- commands that can be run
 
@@ -125,13 +124,13 @@ packbuild =
 
 
 packup :: HupCommands
-packup = 
+packup =
   Packup
     { verbose    = verbArgs   def
-      ,server    = serverArg  defaultServer  
-      ,candidate =            def  
-      ,file      = fileArg    def  &= argPos 0  
-      ,user      = userArg    Nothing  
+      ,server    = serverArg  defaultServer
+      ,candidate =            def
+      ,file      = fileArg    def  &= argPos 0
+      ,user      = userArg    Nothing
       ,password  = passwdArg  Nothing }
        &= help     (unwords   ["Upload FILE as a package (or"
                                ,"candidate package)."])
@@ -140,15 +139,15 @@ packboth :: HupCommands
 packboth =
   Packboth
     { verbose    = verbArgs   def
-      ,server    = serverArg  defaultServer  
-      ,candidate =            def  
-      ,user      = userArg    Nothing  
+      ,server    = serverArg  defaultServer
+      ,candidate =            def
+      ,user      = userArg    Nothing
       ,password  = passwdArg  Nothing }
        &= help     (unwords   ["Build source distribution .tgz and upload"
                                ,"as package (or candidate package)."])
 
 docbuild :: HupCommands
-docbuild = 
+docbuild =
   Docbuild
     { verbose     = verbArgs  def
      ,executables =           def &= help "Run haddock for Executables targets"
@@ -158,7 +157,7 @@ docbuild =
      ,haddockArgs =           def &= help "extra args to pass to haddock"
                                   &= explicit
                                   &= name "haddock-arguments"
-                                  &= typ  "ARGS"   
+                                  &= typ  "ARGS"
      ,quick       =           def &= help (unwords ["quick build - don't build"
                                           ,"docco for dependencies (links may"
                                           ,"be broken)"])
@@ -167,15 +166,15 @@ docbuild =
 
 docup :: HupCommands
 docup =
-  Docup 
-    { server = serverArg  defaultServer 
-     ,file   = fileArg    def &= argPos 0 
+  Docup
+    { server = serverArg  defaultServer
+     ,file   = fileArg    def &= argPos 0
      }
      &= help "Upload FILE as documentation."
 
 docboth :: HupCommands
-docboth = 
-  Docboth 
+docboth =
+  Docboth
     {}
     &= help "Build and upload documentation for a package."
 
@@ -186,21 +185,21 @@ processArgs = do
     -- If the user did not specify any arguments, pretend "--help" was given
    (if null args then withArgs ["--help"] else id) proc
 
-  where 
+  where
   proc :: IO HupCommands
   proc = cmdArgs $ -- commands that can be run, i.e. "modes"
            modes [packbuild
-                 ,packup  
+                 ,packup
                  ,packboth
-                 ,docbuild -- &= groupname "A" 
+                 ,docbuild -- &= groupname "A"
                  ,docup    -- &= groupname "B"
-                 ,docboth ]  -- &= groupname "C"] 
+                 ,docboth ]  -- &= groupname "C"]
                   &= help progHelp
                   &= program "hup"
                   &= summary ("hup v" ++ showVersion version)
                   &= helpArg [explicit, name "h", name "help"]
 
-  progHelp = unwords 
+  progHelp = unwords
      ["Build and/or upload packages or documentation to a hackage server."
      ,"A server url should be of the format PROTOCOL://SERVER[:PORT]/,"
      ,"and defaults to", defaultServer, "if not specified.\n"

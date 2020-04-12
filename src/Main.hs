@@ -12,7 +12,6 @@
 module Main where
 
 import Prelude hiding (FilePath)
-import qualified Prelude
 
 import Control.Monad
 import Control.Monad.IO.Class     ( MonadIO(..) )
@@ -30,16 +29,16 @@ import System.IO                  (hSetBuffering, BufferMode( LineBuffering )
 --import qualified System.IO.Temp as Tmp
 
 import Distribution.Hup           ( Package(..),IsDocumentation(..)
-                                  ,IsCandidate(..),Auth(..),Upload(..)
-                                  ,mkAuth 
-                                  ,readCabal, extractCabal
-                                  ,parseTgzFilename' 
+                                  , IsCandidate(..),Auth(..),Upload(..)
+                                  , mkAuth
+                                  , readCabal, extractCabal
+                                  , parseTgzFilename'
                                   , getUploadUrl)
 import CmdArgs                    (HupCommands(..), isUpload, processArgs
-                                  ,isBuild, isBoth, isDoc)
-import DocBuilding                (buildDocs) 
+                                  , isBuild, isBoth, isDoc)
+import DocBuilding                (buildDocs)
 import SanityCheck                (sanity)
-import qualified Stack 
+import qualified Stack
 import Upload                     (doUpload)
 
 
@@ -59,12 +58,12 @@ type MonadHup m = (MonadIO m, MonadSh m, MonadShControl m, MonadReader HupComman
 --
 -- Sample usage:
 --
--- > import Distribution.Hup.Upload 
--- > :set -XOverloadedStrings 
+-- > import Distribution.Hup.Upload
+-- > :set -XOverloadedStrings
 -- > let p = Package "foo" "0.1"
 -- > let d = Docbuild { verbose = True }
 -- > upload <- shelly $ verbosely $ runReaderT (stackBuildDocs "." p) d
--- > doUpload "http://localhost:8080" upload (mkAuth "myname" "mypass") 
+-- > doUpload "http://localhost:8080" upload (mkAuth "myname" "mypass")
 --
 -- When running from within ghci, you may have to unset some
 -- environment variables that have been set.
@@ -106,7 +105,7 @@ stackSourceDist p@(Package pkg ver) = do
   distDir <- Stack.extractPath =<< run "stack" ["path", "--dist-dir"]
   let tgzFile = pkg <> "-" <> ver <> ".tar.gz"
   cp (distDir </> tgzFile) "."
-  return $ Upload p tgzFile Nothing IsPackage (isCand hc) 
+  return $ Upload p tgzFile Nothing IsPackage (isCand hc)
 
 
 -- | if we have a username, then we need to get
@@ -114,7 +113,7 @@ stackSourceDist p@(Package pkg ver) = do
 getAuth :: MonadSh m => HupCommands -> m (Maybe Auth)
 getAuth hc = runMaybeT $ do
   hc <- MaybeT $ return $ isUpload hc
-  u <- MaybeT $ return $ user hc 
+  u <- MaybeT $ return $ user hc
   case password hc of
     Just p -> MaybeT $ return $ mkAuth u p
     Nothing -> do x <- get_env "PASSWORD"
@@ -127,10 +126,10 @@ getAuth hc = runMaybeT $ do
 data Done = Done
   deriving (Show)
 
-type MonadDone m a = ExceptT Done m a 
+type MonadDone m a = ExceptT Done m a
 
 runEarlyReturn :: Monad m => MonadDone m () -> m ()
-runEarlyReturn f = 
+runEarlyReturn f =
   either (const ()) id <$> runExceptT f
 
 -- exit early
@@ -138,10 +137,10 @@ done :: Monad m => ExceptT Done m a
 done = throwE Done
 
 isCand :: HupCommands -> IsCandidate
-isCand hc = 
+isCand hc =
   if candidate hc
   then CandidatePkg
-  else NormalPkg 
+  else NormalPkg
 
 -- | Look at a FILE command-line arg of something we've been asked to
 -- upload, & try uploading it.
@@ -155,22 +154,22 @@ isCand hc =
 --
 -- todo: give nice error messages, rather than throwing exceptions
 -- in some cases?
-uploadTgz :: 
+uploadTgz ::
     (MonadSh m, MonadIO m, MonadReader HupCommands m) =>
     IsDocumentation -> Text -> MonadDone m ()
-uploadTgz expectedType desc = do 
+uploadTgz expectedType desc = do
   hc <- ask
-  let fileName   = file hc 
+  let fileName   = file hc
       fileName'' = T.pack fileName
-      candType   = isCand hc 
+      candType   = isCand hc
       serverUrl  = server hc
       verb       = verbose hc
   (upType, Package pkg ver) <- let parsed = parseTgzFilename' fileName
-                               in either (lift . terror) return parsed 
+                               in either (lift . terror) return parsed
   when (upType /= expectedType) $
     lift $ terror $ T.unwords ["Expected", desc, "file, got", fileName'']
   -- if all is ok, do the upload.
-  let upload = Upload (Package pkg ver) (file hc) Nothing expectedType candType 
+  let upload = Upload (Package pkg ver) (file hc) Nothing expectedType candType
   auth <- lift $ getAuth hc
   let url = getUploadUrl serverUrl upload
   lift $ echo $ "uploading to " <> T.pack url
@@ -179,9 +178,9 @@ uploadTgz expectedType desc = do
                             (if verb
                             then T.pack msg
                             else "")
-  case serverResponse of 
+  case serverResponse of
     Left err -> do lift $ echo $ "Error from server:\n" <> T.pack err
-                   throwE Done 
+                   throwE Done
     Right msg  -> lift $ echo $ displayedMesg msg
 
 
@@ -194,7 +193,7 @@ uploadTgz expectedType desc = do
 -- > let d = Docbuild { verbose = True }
 -- > shelly $ verbosely $ runReaderT $ mainSh d
 mainSh :: MonadHup m => m ()
-mainSh =  do  
+mainSh =  do
   hc <- ask
   --tmpBase <- liftIO $ Tmp.getCanonicalTemporaryDirectory
   --tmpDir  <- fromText . T.pack <$> liftIO (Tmp.createTempDirectory tmpBase "hup")
@@ -203,13 +202,13 @@ mainSh =  do
   -- *  Bug intermittently occurred where this temp directory disappeared
   --    partway thru mainSh running. Might've been caused by something
   --    not being strict enough? This seems to fix it, so far *shrug*
-  withTmpDir $ \tmpDir -> do 
-    !res <- runEarlyReturn $ do
+  withTmpDir $ \tmpDir -> do
+    !_ <- runEarlyReturn $ do
       cabalConts <- liftIO readCabal
       let packageName = extractCabal "name" cabalConts
-          packageVer  = extractCabal "version" cabalConts 
+          packageVer  = extractCabal "version" cabalConts
       case hc of
-        Packup {}   -> do uploadTgz IsPackage "package"  
+        Packup {}   -> do uploadTgz IsPackage "package"
                           throwE Done
         Docup  {}   -> do uploadTgz IsDocumentation "documentation"
                           throwE Done
@@ -218,13 +217,13 @@ mainSh =  do
         _                 -> error "match error"
       -- if still here, we've been asked to do a build.
       uploadable <- do let p = Package packageName packageVer
-                       buildRes <- case hc of 
+                       buildRes <- case hc of
                           (isDoc -> True) ->  lift $ stackBuildDocs tmpDir p
                           _               ->  lift $ stackSourceDist p
-                          
+
                        let tgzFile = fromText $ T.pack $ fileToUpload buildRes
 
-                       case hc of 
+                       case hc of
                          Packbuild {} -> throwE Done -- build only
                          Docbuild {} -> lift (cp tgzFile ".") >>
                                         throwE Done -- no need to upload,
@@ -234,9 +233,9 @@ mainSh =  do
       let url = getUploadUrl (server hc) uploadable
       lift $ echo $ "uploading to " <> T.pack url
       response <- liftIO $ doUpload (server hc) uploadable auth
-      case response of 
+      case response of
         Left err -> do lift $ echo $ "Error from server:\n'" <> T.pack err
-                       throwE Done 
+                       throwE Done
         Right msg -> lift $ do echo "Uploaded successfully"
                                echo $ "mesg was: " <> T.pack msg
     return ()
@@ -250,9 +249,9 @@ main = do
   let verbosify = if verbose hupCommand
                   then verbosely
                   else id
-  shelly $ do
-    verbosify $ do 
-      runReaderT mainSh hupCommand 
+  shelly $
+    verbosify $
+      runReaderT mainSh hupCommand
   return ()
 
 
