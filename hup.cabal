@@ -158,7 +158,7 @@ test-suite hup-spec
       base
     , bytestring
     , filepath
-    , hspec-wai
+    , hspec-wai < 0.10
     , http-client
     , http-types
     , hup
@@ -170,6 +170,15 @@ test-suite hup-spec
     , transformers
     , wai
     , wai-extra
+  if impl(ghc < 8.4.4)
+    build-depends:
+      -- simple-templates 0.9.0.0 has broken bounds.
+      -- (<https://github.com/alevy/simple/issues/25>)
+      -- It states bounds on base of "< 6",
+      -- but the code only seems to build with
+      -- base >= 4.11.1.0 / ghc >= 8.4.4.
+      simple-templates < 0.9.0.0
+
   ghc-options:      -threaded
                     -rtsopts
                     -with-rtsopts=-N
