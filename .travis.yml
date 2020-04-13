@@ -1,7 +1,4 @@
 
-# Use new container infrastructure to enable caching
-sudo: false
-
 # Do not choose a language; we provide our own build tools.
 language: generic
 
@@ -20,6 +17,7 @@ matrix:
     compiler: ": #GHC 7.10.3"
     addons: {apt: {packages: [cabal-install-1.22,ghc-7.10.3,happy-1.19.5,alex-3.1.7], sources: [hvr-ghc]}}
 
+  # version w/ no web test
   - env: BUILD=cabal GHCVER=7.10.3 CABALVER=1.22 HAPPYVER=1.19.5 ALEXVER=3.1.7 PKG_FLAGS="--flags=-enablewebtests"
     compiler: ": #GHC 7.10.3"
     addons: {apt: {packages: [cabal-install-1.22,ghc-7.10.3,happy-1.19.5,alex-3.1.7], sources: [hvr-ghc]}}
@@ -28,31 +26,32 @@ matrix:
     compiler: ": #GHC 8.0.1"
     addons: {apt: {packages: [cabal-install-1.24,ghc-8.0.1,happy-1.19.5,alex-3.1.7], sources: [hvr-ghc]}}
 
-  - env: BUILD=cabal GHCVER=8.0.1 CABALVER=1.24 HAPPYVER=1.19.5 ALEXVER=3.1.7 PKG_FLAGS="--flags=-enablewebtests"
-    compiler: ": #GHC 8.0.1"
-    addons: {apt: {packages: [cabal-install-1.24,ghc-8.0.1,happy-1.19.5,alex-3.1.7], sources: [hvr-ghc]}}
-
   # Stack builds. Can pass in arbitrary Stack arguments via the ARGS
   # variable, such as using --stack-yaml to point to a different file.
 
-  - env: BUILD=stack ARGS="--resolver lts-6" GHCVER=7.10.3 CABALVER=1.22 PKG_FLAGS="--flag hup:enablewebtests"
+  # no doctests for lts-3
+  - env: BUILD=stack STACK_VER="1.5.1" ARGS="--resolver lts-3 --stack-yaml stack-lts-3.yaml" PKG_FLAGS="--flag hup:enablewebtests"
     compiler: ": #stack 7.10.3"
-    addons: {apt: {packages: [libgmp-dev,cabal-install-1.22,ghc-7.10.3], sources: [hvr-ghc]}}
+    addons: {apt: {packages: [libgmp-dev], sources: [hvr-ghc]}}
+
+  #- env: BUILD=stack ARGS="--resolver lts-6" GHCVER=7.10.3 PKG_FLAGS="--flag hup:enablewebtests --flag hup:BuildStackBasedTests"
+  #  compiler: ": #stack 7.10.3"
+  #  addons: {apt: {packages: [libgmp-dev], sources: [hvr-ghc]}}
+
+  - env: BUILD=stack STACK_VER="1.5.1" ARGS="--resolver lts-7 --stack-yaml stack-lts-7.yaml" PKG_FLAGS="--flag hup:enablewebtests --flag hup:BuildStackBasedTests"
+    compiler: ": #stack 8.0.1"
+    addons: {apt: {packages: [libgmp-dev], sources: [hvr-ghc]}}
 
 # use this one for github release
-  - env: BUILD=stack ARGS="--resolver lts-7" RELEASE="true" GHCVER=7.10.3 CABALVER=1.22 PKG_FLAGS="--flag hup:enablewebtests"
+# stack 1.5.1 fails, w/ lts-11
+  - env: BUILD=stack STACK_VER="1.9.3" ARGS="--resolver lts-11 --stack-yaml stack-lts-11.yaml" RELEASE="true" PKG_FLAGS="--flag hup:enablewebtests --flag hup:BuildStackBasedTests"
     compiler: ": #stack 8.0.1"
-    addons: {apt: {packages: [libgmp-dev,cabal-install-1.22,ghc-7.10.3], sources: [hvr-ghc]}}
-
-  - env: BUILD=stack ARGS="--resolver lts-7" GHCVER=7.10.3 CABALVER=1.22 PKG_FLAGS="--flag hup:-enablewebtests" 
-    compiler: ": #stack 8.0.1"
-    addons: {apt: {packages: [libgmp-dev,cabal-install-1.22,ghc-7.10.3], sources: [hvr-ghc]}}
+    addons: {apt: {packages: [libgmp-dev], sources: [hvr-ghc]}}
 
   # Build on macOS in addition to Linux
-  #- env: BUILD=stack ARGS="" PKG_FLAGS="--flag hup:enablewebtests" 
-  #  compiler: ": #stack default osx"
-  #  os: osx
-  # Nope. Failing, and I don't have time to work out why.
+  - env: BUILD=stack STACK_VER="1.9.3" ARGS="--resolver lts-11 --stack-yaml stack-lts-11.yaml" PKG_FLAGS="--flag hup:enablewebtests --flag hup:BuildStackBasedTests"
+    compiler: ": #stack default osx"
+    os: osx
 
 
 before_install:
@@ -62,8 +61,8 @@ before_install:
 - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$HOME/.local/bin:/opt/alex/$ALEXVER/bin:/opt/happy/$HAPPYVER/bin:$HOME/.cabal/bin:$PATH
 - mkdir -p ~/.local/bin
 - |
-  export LINUX64_STACK="https://github.com/commercialhaskell/stack/releases/download/v1.5.1/stack-1.5.1-linux-x86_64.tar.gz"
-  export OSX_STACK="https://github.com/commercialhaskell/stack/releases/download/v1.5.1/stack-1.5.1-osx-x86_64.tar.gz"
+  export LINUX64_STACK="https://github.com/commercialhaskell/stack/releases/download/v${STACK_VER}/stack-${STACK_VER}-linux-x86_64.tar.gz"
+  export OSX_STACK="https://github.com/commercialhaskell/stack/releases/download/v${STACK_VER}/stack-${STACK_VER}-osx-x86_64.tar.gz"
   if [ `uname` = "Darwin" ]
   then
     travis_retry curl --insecure -L "${OSX_STACK}" | tar xz --strip-components=1 --include '*/stack' -C ~/.local/bin
@@ -80,14 +79,19 @@ before_install:
   echo 'remote-repo: hackage.haskell.org:http://hackage.fpcomplete.com/' > $HOME/.cabal/config
   echo 'remote-repo-cache: $HOME/.cabal/packages' >> $HOME/.cabal/config
 
-  if [ "$CABALVER" != "1.16" ]
-  then
-    echo 'jobs: $ncpus' >> $HOME/.cabal/config
-  fi
-- stack --version
-- cabal --version
-- ghc --version
-- travis_retry cabal update
+- |
+  set -ex
+  case "$BUILD" in
+    stack)
+      stack --version
+      ;;
+    cabal)
+      cabal --version
+      ghc --version
+      travis_retry cabal update
+      ;;
+  esac
+  set +ex
 
 install:
 - echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
@@ -116,20 +120,25 @@ script:
       stack --no-terminal $ARGS test --bench --no-run-benchmarks --haddock --no-haddock-deps
       stack --no-terminal $ARGS exec hup -- --version
       stack $ARGS install
-      cd /tmp && stack unpack void-0.7.2
-      cd /tmp/void-0.7.2 && stack $ARGS init && stack setup && stack build && hup packbuild && hup docbuild
-      tar tf /tmp/void-0.7.2/void-0.7.2.tar.gz
-      tar tf /tmp/void-0.7.2/void-0.7.2-docs.tar.gz
+      # if on linux, we now actually try out the binary on a
+      # random package (void).
+      # on macos: doesn't seem to work, no idea why.
+      if [ ! `uname` = "Darwin" ] ; then
+        cd /tmp && stack unpack void-0.7.2
+        cd /tmp/void-0.7.2 && stack $ARGS init && stack setup && stack build && hup packbuild && hup docbuild
+        tar tf /tmp/void-0.7.2/void-0.7.2.tar.gz
+        tar tf /tmp/void-0.7.2/void-0.7.2-docs.tar.gz
+      fi
       ;;
     cabal)
       cabal install --flags="enablewebtests" --enable-tests --enable-benchmarks --force-reinstalls --ghc-options=-O0 --reorder-goals --max-backjumps=-1 $CABALARGS $PACKAGES
-      # TODO:  --show-details=always 
+      # TODO:  --show-details=always
 
       ORIGDIR=$(pwd)
       for dir in $PACKAGES
       do
         cd $dir
-        cabal check || [ "$CABALVER" == "1.16" ]
+        cabal check
         cabal sdist
         PKGVER=$(cabal info . | awk '{print $2;exit}')
         SRC_TGZ=$PKGVER.tar.gz
@@ -151,21 +160,20 @@ before_deploy:
 - |
   if [ ! -f "$SRC_TGZ" ] ; then
     stack sdist;
-    distdir=`stack path --dist-dir`; 
+    distdir=`stack path --dist-dir`;
     cp $distdir/$SRC_TGZ .;
   fi
 - ls -al "$SRC_TGZ"; true
 - cp ~/.local/bin/hup .
-- tar cf hup_x86_64.tgz --gzip hup
-- ls -al hup_x86_64.tgz
+- tar cf hup_linux_x86_64.tgz --gzip hup
+- ls -al hup_linux_x86_64.tgz
 
 
 deploy:
   provider: releases
-  file: 
+  file:
   - "$SRC_TGZ"
-  - hup_x86_64.tgz
-  skip_cleanup: true
+  - hup_linux_x86_64.tgz
   # overwrite: true
   api_key:
     secure: RzlHVrVLGvb8Or+PLzfdUF6YFIFU65xqZ3hl8TodglRnA8avcfej/W/K/aaXKb+i9eL4lmbc8WtTR5Qm8CxNtlR/uPAC1LBEVhJQHBKn6n1/uRTMOaRs75UjsIcm3GQKuOWI0HpMvb8Px7LBqdlE6wJURvqBTqkbomO6OMl8I2gMO0rYYP/ylf5e9Ozl0AzMWqzjwrA3brw6CTPWcup8s4GwHnsdisxrQDkE1ltt5P+MluJGKbQ4PDHrINOnUXSL/lcvUHc4i5clAqO7Baff0QCdl/RBxML5/fDB/OHuJpDu3GRXcWloQReu1gw3zuVaT9yA5JZvf4XQy2fnFNZUDbeNlM4L1tt19JOvLTzBPrr/KchxJ3aKW8L9z0dpMQ1sxE77VyJ+Bpg68k9pzBGcZ8XO0kraS1ZuAdP5LyuOnxOusG6vJA+MRSh+3kmeuOsqi0xVlrr89RiuIwFTG2fegDj5+PH6MTOnEJlfKHmK4pEB+NSSfVvmX8JBOlTg6v/HJpiMxGxpdkrvAC6Adb+gm1M6f5eZrPU3R0AFmDQ1me9HVCg2cL3l4lMgn88OUkRy79ipPPajLZ/CpE/+6j3Gau3XuZbg8LbH3Vo72KSeWaqPo9wge2/poeqfPYBvj+GGAR0GihAOJLvOldX1+VMQd6GWpTp16W2hA7XePxOIQkI=

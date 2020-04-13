@@ -13,7 +13,7 @@ environment:
     STACK_ROOT: "c:\\sr"
 
 test_script:
-- stack setup > nul
-- echo "" | stack --no-terminal build 
-- echo "" | stack --no-terminal test
-- stack exec -- hup --version
+- stack --resolver=lts-11 setup > nul
+- echo "" | stack --no-terminal --resolver lts-11 --stack-yaml stack-lts-11.yaml build
+- echo "" | stack --no-terminal --resolver lts-11 --stack-yaml stack-lts-11.yaml test
+- stack --resolver lts-11 --stack-yaml stack-lts-11.yaml exec -- hup --version
