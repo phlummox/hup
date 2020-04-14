@@ -2,54 +2,64 @@
 # Do not choose a language; we provide our own build tools.
 language: generic
 
+env:
+  global:
+  - PATH="$HOME/.local/bin:$PATH"
+
 # Caching so the next build will be fast too.
 cache:
   directories:
-  - $HOME/.ghc
-  - $HOME/.cabal
-  - $HOME/.stack
+  - "$HOME/.ghc"
+  - "$HOME/.cabal"
+  - "$HOME/.stack"
 
 matrix:
   include:
-  # We grab the appropriate GHC and cabal-install versions from hvr's PPA. See:
-  # https://github.com/hvr/multi-ghc-travis
-  - env: BUILD=cabal GHCVER=7.10.3 CABALVER=1.22 HAPPYVER=1.19.5 ALEXVER=3.1.7 PKG_FLAGS="--flags=enablewebtests"
+  # We grab the appropriate GHC and cabal-install versions from hvr's PPA
+  - env: BUILD=cabal GHCVER=7.10.3 CABALVER=1.22 PKG_FLAGS="--flags=enablewebtests"
     compiler: ": #GHC 7.10.3"
     addons: {apt: {packages: [cabal-install-1.22,ghc-7.10.3,happy-1.19.5,alex-3.1.7], sources: [hvr-ghc]}}
 
-  # version w/ no web test
-  - env: BUILD=cabal GHCVER=7.10.3 CABALVER=1.22 HAPPYVER=1.19.5 ALEXVER=3.1.7 PKG_FLAGS="--flags=-enablewebtests"
-    compiler: ": #GHC 7.10.3"
-    addons: {apt: {packages: [cabal-install-1.22,ghc-7.10.3,happy-1.19.5,alex-3.1.7], sources: [hvr-ghc]}}
-
-  - env: BUILD=cabal GHCVER=8.0.1 CABALVER=1.24 HAPPYVER=1.19.5 ALEXVER=3.1.7 PKG_FLAGS="--flags=enablewebtests"
+  # cabal version w/ no web test
+  - env: BUILD=cabal GHCVER=8.0.1 CABALVER=1.24 PKG_FLAGS="--flags=-enablewebtests"
     compiler: ": #GHC 8.0.1"
     addons: {apt: {packages: [cabal-install-1.24,ghc-8.0.1,happy-1.19.5,alex-3.1.7], sources: [hvr-ghc]}}
 
-  # Stack builds. Can pass in arbitrary Stack arguments via the ARGS
-  # variable, such as using --stack-yaml to point to a different file.
+  # Stack-based builds.
 
-  # no doctests for lts-3
-  - env: BUILD=stack STACK_VER="1.5.1" ARGS="--resolver lts-3 --stack-yaml stack-lts-3.yaml" PKG_FLAGS="--flag hup:enablewebtests"
+  # version w web test, lts-3 and stack 1.5.1
+  # no doctests for lts-3 - doctest won't run properly for
+  # some reason, but succeeds in later LTSs.
+  - env: BUILD=stack STACK_VER="1.5.1" STACK_RESOLVER="lts-3" PKG_FLAGS="--flag hup:enablewebtests"
     compiler: ": #stack 7.10.3"
     addons: {apt: {packages: [libgmp-dev], sources: [hvr-ghc]}}
 
-  #- env: BUILD=stack ARGS="--resolver lts-6" GHCVER=7.10.3 PKG_FLAGS="--flag hup:enablewebtests --flag hup:BuildStackBasedTests"
-  #  compiler: ": #stack 7.10.3"
-  #  addons: {apt: {packages: [libgmp-dev], sources: [hvr-ghc]}}
-
-  - env: BUILD=stack STACK_VER="1.5.1" ARGS="--resolver lts-7 --stack-yaml stack-lts-7.yaml" PKG_FLAGS="--flag hup:enablewebtests --flag hup:BuildStackBasedTests"
-    compiler: ": #stack 8.0.1"
+  # lts-3
+  # no doctests for lts-3 - doctest won't run properly for
+  # some reason, but succeeds in later LTSs.
+  - env: BUILD=stack STACK_VER="1.5.1" STACK_RESOLVER="lts-3" PKG_FLAGS="--flag hup:enablewebtests"
+    compiler: ": #stack 7.10.3"
     addons: {apt: {packages: [libgmp-dev], sources: [hvr-ghc]}}
 
+  # lts-6
+  - env: BUILD=stack STACK_VER="1.9.3" STACK_RESOLVER="lts-6" PKG_FLAGS="--flag hup:enablewebtests --flag hup:BuildStackBasedTests"
+    compiler: ": #stack 7.10.3"
+    addons: {apt: {packages: [libgmp-dev], sources: [hvr-ghc]}}
+
+  # - env: BUILD=stack STACK_VER="1.5.1" STACK_RESOLVER="lts-7" PKG_FLAGS="--flag hup:enablewebtests --flag hup:BuildStackBasedTests"
+  #   compiler: ": #stack 8.0.1"
+  #   addons: {apt: {packages: [libgmp-dev], sources: [hvr-ghc]}}
+
 # use this one for github release
-# stack 1.5.1 fails, w/ lts-11
-  - env: BUILD=stack STACK_VER="1.9.3" ARGS="--resolver lts-11 --stack-yaml stack-lts-11.yaml" RELEASE="true" PKG_FLAGS="--flag hup:enablewebtests --flag hup:BuildStackBasedTests"
+# requires more recent stack than 1.5.1 -
+# 1.5.1 doesn't seems to be able to build using
+# lts-11 snapshot at all.
+  - env: BUILD=stack STACK_VER="1.9.3" STACK_RESOLVER="lts-11" RELEASE="true" PKG_FLAGS="--flag hup:enablewebtests --flag hup:BuildStackBasedTests"
     compiler: ": #stack 8.0.1"
     addons: {apt: {packages: [libgmp-dev], sources: [hvr-ghc]}}
 
   # Build on macOS in addition to Linux
-  - env: BUILD=stack STACK_VER="1.9.3" ARGS="--resolver lts-11 --stack-yaml stack-lts-11.yaml" PKG_FLAGS="--flag hup:enablewebtests --flag hup:BuildStackBasedTests"
+  - env: BUILD=stack STACK_VER="1.9.3" STACK_RESOLVER="lts-11" PKG_FLAGS="--flag hup:enablewebtests --flag hup:BuildStackBasedTests"
     compiler: ": #stack default osx"
     os: osx
 
@@ -57,30 +67,73 @@ matrix:
 before_install:
 # Using compiler above sets CC to an invalid value, so unset it
 - unset CC
-# Download and unpack the stack executable
-- export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$HOME/.local/bin:/opt/alex/$ALEXVER/bin:/opt/happy/$HAPPYVER/bin:$HOME/.cabal/bin:$PATH
-- mkdir -p ~/.local/bin
+
+- export PATH="/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:/opt/alex/$ALEXVER/bin:/opt/happy/$HAPPYVER/bin:$HOME/.cabal/bin:$PATH"
+
+# default values for stack resolver, version, args
+
 - |
+  if [ -z "$STACK_RESOLVER" ] ; then
+    export STACK_RESOLVER="lts-11"
+  fi
+
+  if [ -z "$STACK_VER" ] ; then
+    export STACK_VER="1.9.3"
+  fi
+
+  export ARGS="--resolver $STACK_RESOLVER --stack-yaml stack-$STACK_RESOLVER.yaml"
+
+  # only needed if we have special cabal
+  # requirements. TODO: probably can delete
+  # (need to remove all refs to it as well)
+  if [ -z "$CABALARGS" ] ; then
+    export CABALARGS=""
+  fi
+
+# set up build tools
+- |
+  printf '\n***before_install***\n'
+  set -x
+  pwd
+
+  # set -e seems to cause stack setup to fail?
+  set -u
+
+  mkdir -p ~/.local/bin
+
+  # always install stack. used for getting
+  # a list of packages to build and their dirs
+
   export LINUX64_STACK="https://github.com/commercialhaskell/stack/releases/download/v${STACK_VER}/stack-${STACK_VER}-linux-x86_64.tar.gz"
   export OSX_STACK="https://github.com/commercialhaskell/stack/releases/download/v${STACK_VER}/stack-${STACK_VER}-osx-x86_64.tar.gz"
+
   if [ `uname` = "Darwin" ]
   then
     travis_retry curl --insecure -L "${OSX_STACK}" | tar xz --strip-components=1 --include '*/stack' -C ~/.local/bin
-    stack setup
-    stack install cabal-install
-    export PATH=`stack path --compiler-bin`:$PATH
   else
     travis_retry curl -L "${LINUX64_STACK}" | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
-    stack setup
   fi
 
-  # Use the more reliable S3 mirror of Hackage
-  mkdir -p $HOME/.cabal
-  echo 'remote-repo: hackage.haskell.org:http://hackage.fpcomplete.com/' > $HOME/.cabal/config
-  echo 'remote-repo-cache: $HOME/.cabal/packages' >> $HOME/.cabal/config
+  stack --resolver $STACK_RESOLVER setup
+
+  # if using cabal, set repo
+  case "$BUILD" in
+    cabal)
+      # Use the more reliable S3 mirror of Hackage
+      mkdir -p $HOME/.cabal
+      echo 'remote-repo: hackage.haskell.org:http://hackage.fpcomplete.com/' > $HOME/.cabal/config
+      echo 'remote-repo-cache: $HOME/.cabal/packages' >> $HOME/.cabal/config
+
+      ;;
+  esac
+
+  set +ux
 
 - |
+  printf '\n***show tool versions***\n'
+
   set -ex
+
   case "$BUILD" in
     stack)
       stack --version
@@ -91,50 +144,65 @@ before_install:
       travis_retry cabal update
       ;;
   esac
+
   set +ex
 
 install:
-- echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
-- if [ -f configure.ac ]; then autoreconf -i; fi
 - |
-  set -ex
+  printf '\n***install dependencies***\n'
+
+  set -x
+
   case "$BUILD" in
     stack)
-      stack --no-terminal --install-ghc $ARGS test $PKG_FLAGS --bench --only-dependencies
+      # create stack yaml file if it doesn't exist
+      if [ ! -f "stack-$STACK_RESOLVER.yaml" ] ; then
+        stack --resolver $STACK_RESOLVER --no-terminal --install-ghc init
+        mv stack.yaml "stack-$STACK_RESOLVER.yaml"
+      fi
+
+      stack $ARGS --no-terminal --install-ghc test $PKG_FLAGS --bench --only-dependencies
       ;;
     cabal)
       # Get the list of packages from the stack.yaml file
-      PACKAGES=$(stack --install-ghc query locals | grep '^ *path' | sed 's@^ *path:@@')
+      PACKAGES=$(stack $ARGS query locals | grep '^ *path' | sed 's@^ *path:@@')
 
       cabal install --only-dependencies --enable-tests --enable-benchmarks --force-reinstalls --ghc-options=-O0 --reorder-goals --max-backjumps=-1 $CABALARGS $PACKAGES
       ;;
   esac
-  set +ex
+
+  set +x
 
 
 script:
 - |
-  set -ex
+  printf '\n***script: do build and test***\n'
+
+  set -x
+
   case "$BUILD" in
     stack)
-      stack --no-terminal $ARGS test --bench --no-run-benchmarks --haddock --no-haddock-deps
-      stack --no-terminal $ARGS exec hup -- --version
+      # run tests, build haddocks and any benchmarks
+      stack $ARGS --no-terminal test --bench --no-run-benchmarks --haddock --no-haddock-deps
+      stack $ARGS --no-terminal exec hup -- --version
       stack $ARGS install
+
       # if on linux, we now actually try out the binary on a
       # random package (void).
       # on macos: doesn't seem to work, no idea why.
       if [ ! `uname` = "Darwin" ] ; then
         cd /tmp && stack unpack void-0.7.2
-        cd /tmp/void-0.7.2 && stack $ARGS init && stack setup && stack build && hup packbuild && hup docbuild
+        cd /tmp/void-0.7.2 && stack --resolver $STACK_RESOLVER init && stack --resolver $STACK_RESOLVER setup && stack --resolver $STACK_RESOLVER build && hup packbuild && hup docbuild
+
         tar tf /tmp/void-0.7.2/void-0.7.2.tar.gz
         tar tf /tmp/void-0.7.2/void-0.7.2-docs.tar.gz
       fi
+      cd $TRAVIS_BUILD_DIR
       ;;
     cabal)
       cabal install --flags="enablewebtests" --enable-tests --enable-benchmarks --force-reinstalls --ghc-options=-O0 --reorder-goals --max-backjumps=-1 $CABALARGS $PACKAGES
       # TODO:  --show-details=always
 
-      ORIGDIR=$(pwd)
       for dir in $PACKAGES
       do
         cd $dir
@@ -148,35 +216,63 @@ script:
         cabal configure --enable-tests -v2 $PKG_FLAGS
         cabal build
         cabal test --show-details=always
-        cd $ORIGDIR
+        cd $TRAVIS_BUILD_DIR
       done
       ;;
   esac
-  set +ex
+
+  set +x
 
 before_deploy:
-- PKGVER=$(cabal info . | head -n  1 | cut -d ' ' -f 2)
-- SRC_TGZ=$PKGVER.tar.gz
+
 - |
+  printf '\n***before_deploy***\n'
+
+  set -ux;
+
+  # e.g. mypackage-0.1.2.0
+  # "ls dependencies" avail from at least stack >= 1.9.3,
+  # so should be fine.
+  export PKGVER=$(stack $ARGS ls dependencies --depth 0 | sed 's/ /-/')
+  export SRC_TGZ=$PKGVER.tar.gz
+
+  ls -al;
+
   if [ ! -f "$SRC_TGZ" ] ; then
-    stack sdist;
-    distdir=`stack path --dist-dir`;
+    stack $ARGS sdist;
+    distdir=`stack $ARGS path --dist-dir`;
     cp $distdir/$SRC_TGZ .;
   fi
-- ls -al "$SRC_TGZ"; true
-- cp ~/.local/bin/hup .
-- tar cf hup_linux_x86_64.tgz --gzip hup
-- ls -al hup_linux_x86_64.tgz
+  ls -al "$SRC_TGZ"
+  cp ~/.local/bin/hup .
+  tar cf ${PKGVER}_linux_x86_64.tgz --gzip hup
+  ls -al ${PKGVER}_linux_x86_64.tgz
 
+  set +ux
 
 deploy:
   provider: releases
+
+  # travis lint warns skip_cleanup is deprecated,
+  # but currently still seems to be necessary.
+  skip_cleanup: true
+
   file:
   - "$SRC_TGZ"
-  - hup_linux_x86_64.tgz
-  # overwrite: true
+  - "${PKGVER}_linux_x86_64.tgz"
+
+  # NB: when creating api keys using the 'travis'
+  # command-line tool:
+  # Most of the online docco is out of date.
+  # If the build is on travis-ci.com (not travis-ci.org),
+  # you need:
+  #    travis login --pro
+  #    travis setup releases --force --pro
+  # to get a key.
+  # If on travis-ci.org, you don't need "--pro".
+
   api_key:
-    secure: RzlHVrVLGvb8Or+PLzfdUF6YFIFU65xqZ3hl8TodglRnA8avcfej/W/K/aaXKb+i9eL4lmbc8WtTR5Qm8CxNtlR/uPAC1LBEVhJQHBKn6n1/uRTMOaRs75UjsIcm3GQKuOWI0HpMvb8Px7LBqdlE6wJURvqBTqkbomO6OMl8I2gMO0rYYP/ylf5e9Ozl0AzMWqzjwrA3brw6CTPWcup8s4GwHnsdisxrQDkE1ltt5P+MluJGKbQ4PDHrINOnUXSL/lcvUHc4i5clAqO7Baff0QCdl/RBxML5/fDB/OHuJpDu3GRXcWloQReu1gw3zuVaT9yA5JZvf4XQy2fnFNZUDbeNlM4L1tt19JOvLTzBPrr/KchxJ3aKW8L9z0dpMQ1sxE77VyJ+Bpg68k9pzBGcZ8XO0kraS1ZuAdP5LyuOnxOusG6vJA+MRSh+3kmeuOsqi0xVlrr89RiuIwFTG2fegDj5+PH6MTOnEJlfKHmK4pEB+NSSfVvmX8JBOlTg6v/HJpiMxGxpdkrvAC6Adb+gm1M6f5eZrPU3R0AFmDQ1me9HVCg2cL3l4lMgn88OUkRy79ipPPajLZ/CpE/+6j3Gau3XuZbg8LbH3Vo72KSeWaqPo9wge2/poeqfPYBvj+GGAR0GihAOJLvOldX1+VMQd6GWpTp16W2hA7XePxOIQkI=
+    secure: JOeBK57QRliwxuqJaiOw83SnKsEtB6cGCNYW3u5VRn3tJAx6iejzwsZTqIDT7RTLAWnbF8LZDnLbOVvISlHB9GuHErhF+N2lwB/GVVi6pUVM8fT3c4aR9etJjOv2r44MK7eUCzBkXFjjXMkNoUrOC5oxi85MZHLyEyYr1uyIwvasbcbc4J4cwjFoK/Ebei+Q93AdhVJvap4s94qolyMYikAOq+ZUpcCgkkCmgMpd5EfLrnsc74nzFI/OQ15OEvuIBPGsUhWryVhXG5qNYY1InG+j+pO9sYMx8sD2frnUxT7SlqSWzjs8KsVHQdm2Nw/2ZhWpObIA7rcQzE/YVqKaho4W+KLa2++RCwoC7zzbVxGqzFgJTwQexYj5CEHCJQgI1uN42fZkbf6dVAbq0GaonokEQjmEj1gVDjtDdYX0CvgNZFZ5ueUNLXllYrFu5n5PSdWxBZWiccJJUW02dQ6Aly9Jd2aKGbEsgixM7ZJLBOXz3ceP4h2ZVMPTSJiOZL50IsY+/CP5HsY6jsVGphQ8die1RURuqKt8QL8mfnG5Aujz71/786AOphYhHDY0Uzz3yAipagG8qQHgfkXFIkjflzHbEm06IIPvKffhOfWpTZAuT27Y8SGutIC8/uIJgC3a/kb1ULNThBAavunEP/iEFN0sO7BI6FcLrR0WANALKlc=
   on:
     tags: true
     all_branches: true
