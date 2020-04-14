@@ -13,15 +13,21 @@ cache:
   - "$HOME/.cabal"
   - "$HOME/.stack"
 
+# the "OS" env var
+# unfortunately duplicates info obtainable from
+# the "os:" yaml key.
+# But `badges.herokuapp.com` can only filter on
+# env, not on os.
+
 matrix:
   include:
   # We grab the appropriate GHC and cabal-install versions from hvr's PPA
-  - env: BUILD=cabal GHCVER=7.10.3 CABALVER=1.22 PKG_FLAGS="--flags=enablewebtests"
+  - env: OS=linux BUILD=cabal GHCVER=7.10.3 CABALVER=1.22 PKG_FLAGS="--flags=enablewebtests"
     compiler: ": #GHC 7.10.3"
     addons: {apt: {packages: [cabal-install-1.22,ghc-7.10.3,happy-1.19.5,alex-3.1.7], sources: [hvr-ghc]}}
 
   # cabal version w/ no web test
-  - env: BUILD=cabal GHCVER=8.0.1 CABALVER=1.24 PKG_FLAGS="--flags=-enablewebtests"
+  - env: OS=linux BUILD=cabal GHCVER=8.0.1 CABALVER=1.24 PKG_FLAGS="--flags=-enablewebtests"
     compiler: ": #GHC 8.0.1"
     addons: {apt: {packages: [cabal-install-1.24,ghc-8.0.1,happy-1.19.5,alex-3.1.7], sources: [hvr-ghc]}}
 
@@ -30,19 +36,19 @@ matrix:
   # version w web test, lts-3 and stack 1.5.1
   # no doctests for lts-3 - doctest won't run properly for
   # some reason, but succeeds in later LTSs.
-  - env: BUILD=stack STACK_VER="1.5.1" STACK_RESOLVER="lts-3" PKG_FLAGS="--flag hup:enablewebtests"
+  - env: OS=linux BUILD=stack STACK_VER="1.5.1" STACK_RESOLVER="lts-3" PKG_FLAGS="--flag hup:enablewebtests"
     compiler: ": #stack 7.10.3"
     addons: {apt: {packages: [libgmp-dev], sources: [hvr-ghc]}}
 
   # lts-3
   # no doctests for lts-3 - doctest won't run properly for
   # some reason, but succeeds in later LTSs.
-  - env: BUILD=stack STACK_VER="1.5.1" STACK_RESOLVER="lts-3" PKG_FLAGS="--flag hup:enablewebtests"
+  - env: OS=linux BUILD=stack STACK_VER="1.5.1" STACK_RESOLVER="lts-3" PKG_FLAGS="--flag hup:enablewebtests"
     compiler: ": #stack 7.10.3"
     addons: {apt: {packages: [libgmp-dev], sources: [hvr-ghc]}}
 
   # lts-6
-  - env: BUILD=stack STACK_VER="1.9.3" STACK_RESOLVER="lts-6" PKG_FLAGS="--flag hup:enablewebtests --flag hup:BuildStackBasedTests"
+  - env: OS=linux BUILD=stack STACK_VER="1.9.3" STACK_RESOLVER="lts-6" PKG_FLAGS="--flag hup:enablewebtests --flag hup:BuildStackBasedTests"
     compiler: ": #stack 7.10.3"
     addons: {apt: {packages: [libgmp-dev], sources: [hvr-ghc]}}
 
@@ -54,12 +60,12 @@ matrix:
 # requires more recent stack than 1.5.1 -
 # 1.5.1 doesn't seems to be able to build using
 # lts-11 snapshot at all.
-  - env: BUILD=stack STACK_VER="1.9.3" STACK_RESOLVER="lts-11" RELEASE="true" PKG_FLAGS="--flag hup:enablewebtests --flag hup:BuildStackBasedTests"
+  - env: OS=linux BUILD=stack STACK_VER="1.9.3" STACK_RESOLVER="lts-11" RELEASE="true" PKG_FLAGS="--flag hup:enablewebtests --flag hup:BuildStackBasedTests"
     compiler: ": #stack 8.0.1"
     addons: {apt: {packages: [libgmp-dev], sources: [hvr-ghc]}}
 
   # Build on macOS in addition to Linux
-  - env: BUILD=stack STACK_VER="1.9.3" STACK_RESOLVER="lts-11" PKG_FLAGS="--flag hup:enablewebtests --flag hup:BuildStackBasedTests"
+  - env: OS=osx BUILD=stack STACK_VER="1.9.3" STACK_RESOLVER="lts-11" PKG_FLAGS="--flag hup:enablewebtests --flag hup:BuildStackBasedTests"
     compiler: ": #stack default osx"
     os: osx
 
