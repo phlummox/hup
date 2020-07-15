@@ -1,4 +1,4 @@
-FROM gitpod/workspace-full
+FROM fpco/stack-build
 
 # Install custom tools, runtimes, etc.
 # For example "bastet", a command-line tetris clone:
