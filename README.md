@@ -9,8 +9,11 @@
 
 Small program for building and uploading packages and documentation
 built with `stack` to a hackage server; a Haskellified version of
-[phadej's script](https://github.com/phadej/binary-orphans/blob/master/hackage-docs.sh),
-which is a stack-enabled version of [ekmett's script](https://github.com/ekmett/lens/blob/master/scripts/hackage-docs.sh).
+[Oleg Grenrus's script][oleg],
+which is a stack-enabled version of [Eric Mertens's script][eric].
+
+[oleg]: http://web.archive.org/web/20210209123501/https://github.com/mstksg/binary-orphans/commit/3f106567260c1a9bb3063d49948201675876ad12.patch
+[eric]: http://web.archive.org/web/20210209124009/https://github.com/ekmett/lens/commit/12b08783a3e44d46b41553d8a57560c6e68cf7e1.patch
 
 In addition to `stack`, it requires the `cabal` executable
 (but will install an appropriate `cabal` if it doesn't find one in the
