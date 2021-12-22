@@ -1,17 +1,27 @@
 name:                hup
 version:             0.3.0.2
-synopsis:            Upload packages or documentation to a hackage server
+synopsis:            Upload packages and/or documentation to a hackage server
 description:
   Upload packages or documentation to a hackage server
   .
-  See the README for details
+  e.g. @hup packbuild@ builds a source distribution @.tgz@
+  file, ready for uploading; @hup packup somefile.tgz@
+  uploads it to a hackage server (<https://hackage.haskell.org/>,
+  by default); and @hup packboth@ combines both steps.
+  @
+  Flags like @[-c|--candidate]@ allow you to upload a
+  candidate package instead.
+  .
+  Requires that @stack@ (<https://www.haskellstack.org>) be installed.
+  .
+  See the README for further details
   (at <https://github.com/phlummox/hup#readme>)
 homepage:            https://github.com/phlummox/hup
 license:             BSD2
 license-file:        LICENSE
 author:              phlummox
 maintainer:          phlummox2@gmail.com
-copyright:           phlummox 2016-2020, others where indicated
+copyright:           phlummox 2016-2021, others where indicated
 category:            Distribution, Web, Documentation
 build-type:          Simple
 tested-with:         GHC == 7.10.3, GHC == 8.0.1, GHC == 8.2.2
@@ -19,6 +29,7 @@ cabal-version:       >=1.10
 
 extra-source-files:
     ChangeLog.md
+  , README.md
   , stack-lts-3.yaml
   , stack-lts-7.yaml
   , stack-lts-11.yaml

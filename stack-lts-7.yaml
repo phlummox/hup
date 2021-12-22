@@ -1,8 +1,0 @@
-resolver: lts-7.24
-
-packages:
-- '.'
-
-extra-deps:
-- http-client-0.5.5
-- http-client-tls-0.3.3
