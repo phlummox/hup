@@ -99,6 +99,11 @@ jobs:
         path: |
           ${{ steps.setup-haskell-stack.outputs.stack-root }}
 
+    # see https://github.com/phlummox/hup/issues/8
+    - name: Clear setup-exe-cache directory
+      if: runner.os == 'macOS'
+      run: rm -rf ${{ steps.setup-haskell-stack.outputs.stack-root }}/setup-exe-cache
+
     - name: Install dependencies
       run: |
         stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --dry-run --dependencies-only
