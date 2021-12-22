@@ -92,7 +92,10 @@ jobs:
     - uses: actions/cache@v1
       name: Cache ~/.stack
       with:
-        key: ${{ runner.os }}-${{ matrix.lts }}-stack-${{ hashFiles('stack-${{ matrix.lts }}.yaml') }}
+        key: ${{ runner.os }}-${{ matrix.lts }}-stack-${{ hashFiles('stack-*yaml.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.lts }}-stack
+          ${{ runner.os }}
         path: |
           ${{ steps.setup-haskell-stack.outputs.stack-root }}
 
@@ -103,7 +106,7 @@ jobs:
 
     - name: Build
       run: |
-        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml build
+        stack --stack-yaml=stack-${{ matrix.lts }}.yaml build
 
     #- name: Test
     #  run: |
