@@ -1,27 +1,40 @@
 name:                hup
 version:             0.3.0.2
-synopsis:            Upload packages or documentation to a hackage server
+synopsis:            Upload packages and/or documentation to a hackage server
 description:
   Upload packages or documentation to a hackage server
   .
-  See the README for details
+  e.g. @hup packbuild@ builds a source distribution @.tgz@
+  file, ready for uploading; @hup packup somefile.tgz@
+  uploads it to a hackage server (<https://hackage.haskell.org/>,
+  by default); and @hup packboth@ combines both steps.
+  @
+  Flags like @[-c|--candidate]@ allow you to upload a
+  candidate package instead.
+  .
+  Requires that @stack@ (<https://www.haskellstack.org>) be installed.
+  .
+  See the README for further details
   (at <https://github.com/phlummox/hup#readme>)
 homepage:            https://github.com/phlummox/hup
 license:             BSD2
 license-file:        LICENSE
 author:              phlummox
 maintainer:          phlummox2@gmail.com
-copyright:           phlummox 2016-2020, others where indicated
+copyright:           phlummox 2016-2021, others where indicated
 category:            Distribution, Web, Documentation
 build-type:          Simple
-tested-with:         GHC == 7.10.3, GHC == 8.0.1, GHC == 8.2.2
+tested-with:         GHC == 8.2.2, GHC == 8.6.5
+                     -- until shelly is fixed, more recent
+                     -- GHCs/versions of base won't build --
+                     -- see https://github.com/phlummox/hup/issues/7
 cabal-version:       >=1.10
 
 extra-source-files:
     ChangeLog.md
-  , stack-lts-3.yaml
-  , stack-lts-7.yaml
+  , README.md
   , stack-lts-11.yaml
+  , stack-lts-14.yaml
 
 source-repository head
   type:     git
@@ -30,14 +43,6 @@ source-repository head
 Flag EnableWebTests
   Description: Enable tests that do a (pretty minimal) check by running an actual
     Warp web server. (Slower to build and run than other tests.)
-  Default:     False
-  Manual:      True
-
-Flag PatchHelpMessage
-  Description:
-    Use patched version of cmdargs-0.10.14.1 with more informative help
-    message. The patched version will need to be pulled from github
-    (or a stack.yaml file must point to it) - see stack.yaml for details.
   Default:     False
   Manual:      True
 
@@ -104,7 +109,6 @@ executable hup
   main-is:             Main.hs
   other-modules:
       CmdArgs
-    , CmdArgs.PatchHelp
     , DefaultServerUrl
     , Paths_hup
     , SanityCheck
@@ -112,23 +116,20 @@ executable hup
     , Upload
     , Stack
     , DocBuilding
-  if flag(PatchHelpMessage)
-    other-modules: CmdArgs.PatchHelp
-    cpp-options:   -DPATCH_HELP
-    build-depends: cmdargs == 0.10.14.1
-  else
-    build-depends: cmdargs
   default-language:    Haskell2010
   build-depends:
       base
     , bytestring
     , directory
     , mtl
-    , shelly >= 1.6.6
+    -- avoid versions of shelly that don't
+    -- build on Windows - see https://github.com/phlummox/hup/issues/7
+    , shelly >= 1.6.6 && < 1.8.0
     , tagsoup
     , text
     , transformers
     , hup
+    , cmdargs
   ghc-options:    -threaded
                   -rtsopts
                   -with-rtsopts=-N

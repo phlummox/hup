@@ -11,7 +11,12 @@ import System.Console.CmdArgs hiding(cmdArgs)
 import System.Environment      (getArgs, withArgs)
 
 import qualified DefaultServerUrl
-import CmdArgs.PatchHelp (cmdArgs)
+
+import System.Console.CmdArgs.Implicit hiding (cmdArgs)
+import qualified System.Console.CmdArgs.Implicit
+
+cmdArgs :: Data a => a -> IO a
+cmdArgs = System.Console.CmdArgs.Implicit.cmdArgs
 
 isDoc :: HupCommands -> Bool
 isDoc cmd = case cmd of

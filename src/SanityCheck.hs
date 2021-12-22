@@ -11,11 +11,17 @@ import Control.Monad.Trans.Except         (ExceptT(..),runExceptT, throwE)
 
 import Data.Monoid                        ( (<>) )
 import Shelly                             (unlessM)
-import System.Directory                   (makeAbsolute,doesFileExist ) 
+import System.Directory                   (makeAbsolute,doesFileExist )
 import System.Exit
 
 import CmdArgs                            (HupCommands(..), isBoth, isBuild, isUp)
-import CmdArgs.PatchHelp                  (cmdArgs)
+--import CmdArgs.PatchHelp                  (cmdArgs)
+
+import System.Console.CmdArgs.Implicit hiding (cmdArgs)
+import qualified System.Console.CmdArgs.Implicit
+
+cmdArgs :: Data a => a -> IO a
+cmdArgs = System.Console.CmdArgs.Implicit.cmdArgs
 
 -- TODO:
 --    - does server look like a server?
@@ -54,11 +60,3 @@ fileSanity hc = case hc of
                        return hc'
   _               -> error "match error, shouldn't be possible"
 
-
-
-
-
-
-
-
-              

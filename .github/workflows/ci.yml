@@ -1,0 +1,112 @@
+
+name: build-test
+
+on:
+  pull_request:
+    paths-ignore:
+      - '**.md'
+  push:
+    paths-ignore:
+      - '**.md'
+
+jobs:
+  cabal_build:
+    name: ${{ matrix.os }} / ghc ${{ matrix.ghc }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-18.04, macOS-latest, windows-latest]
+        cabal: ["3.6"]
+        ghc:
+          - "8.2.2"
+          - "8.6.5"
+          # see <https://github.com/phlummox/hup/issues/7> --
+          # more recent versions of GHC won't work (until
+          # Shelly is fixed)
+
+    steps:
+    - uses: actions/checkout@v2
+      name: Check out code
+
+    - uses: haskell/actions/setup@v1.2
+      name: Setup Haskell
+      id: setup-haskell-cabal
+      with:
+        ghc-version: ${{ matrix.ghc }}
+        cabal-version: ${{ matrix.cabal }}
+
+    - uses: actions/cache@v2
+      name: Cache ~/.cabal/store
+      with:
+        # oft-given path of ~/.cabal/store is WRONG on windows.
+        # see https://markkarpov.com/post/github-actions-for-haskell-ci.html
+        key: ${{ runner.os }}-${{ matrix.ghc }}-cabal
+        path: |
+          ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
+          dist-newstyle
+
+    - name: Install dependencies
+      run: |
+        cabal v2-update
+        cabal v2-build --dependencies-only --reorder-goals --max-backjumps=-1 --minimize-conflict-set
+
+    - name: Build
+      run: |
+        cabal v2-build  --reorder-goals --max-backjumps=-1 --minimize-conflict-set
+
+    - name: Documentation
+      run: |
+        cabal v2-haddock
+
+    #- name: Tests
+    #  run: |
+    #    cabal v2-build --dependencies-only --enable-tests --enable-benchmarks --reorder-goals --max-backjumps=-1 --minimize-conflict-set
+    #    cabal v2-test --enable-tests
+
+
+  stack_build:
+    name: ${{ matrix.os }} / stack lts ${{ matrix.lts }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-18.04, macOS-latest, windows-latest]
+        lts: ["lts-11", "lts-14"]
+        # note that lts >= 15 suffer from the same problem as GHC, above --
+        # see <https://github.com/phlummox/hup/issues/7>.
+
+    steps:
+    - uses: actions/checkout@v2
+      name: Check out code
+
+    - uses: haskell/actions/setup@v1.2
+      name: Setup Stack
+      id: setup-haskell-stack
+      with:
+        ghc-version: "8.6.5"
+        cabal-version: "3.6"
+        enable-stack: true
+        stack-version: "latest"
+
+    - uses: actions/cache@v1
+      name: Cache ~/.stack
+      with:
+        key: ${{ runner.os }}-${{ matrix.lts }}-stack-${{ hashFiles('stack-${{ matrix.lts }}.yaml') }}
+        path: |
+          ${{ steps.setup-haskell-stack.outputs.stack-root }}
+
+    - name: Install dependencies
+      run: |
+        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --dry-run --dependencies-only
+        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --fast --dependencies-only
+
+    - name: Build
+      run: |
+        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml build
+
+    #- name: Test
+    #  run: |
+    #    stack test --system-ghc
+
+

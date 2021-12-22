@@ -1,0 +1,10 @@
+resolver: lts-14.27
+
+packages:
+- .
+
+extra-deps:
+- shelly-1.7.2@sha256:80fb7b2e1372d3931c9a7fecae491780d748a6b293de6aa34faad0c861800004,5168
+
+#- simple-0.11.3@sha256:86e0aa9c0ac370c6c7d00ce3dac45c84682a5c3f4e16927187c68ac88bfa55f1,3186
+#- simple-templates-0.9.0.0@sha256:0dbddbde2eb27127e6bd0bc151b5a0cd87e7030e4de764827744ac0cbaa1b7ca,1744
