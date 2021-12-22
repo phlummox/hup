@@ -1,6 +1,6 @@
 # hup [![Hackage version](https://img.shields.io/hackage/v/hup.svg?label=Hackage)](https://hackage.haskell.org/package/hup)
 
-[![Build Status](https://github.com/phulmmox/hup/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/phlummox/hup/actions/workflows/ci.yml)
+[![Build Status](https://github.com/phlummox/hup/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/phlummox/hup/actions/workflows/ci.yml)
 
 Small program for building and uploading packages and documentation
 built with `stack` to a hackage server; a Haskellified version of
