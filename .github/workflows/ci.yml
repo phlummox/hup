@@ -41,36 +41,13 @@ jobs:
       with:
         # oft-given path of ~/.cabal/store is WRONG on windows.
         # see https://markkarpov.com/post/github-actions-for-haskell-ci.html
-        key: ${{ runner.os }}-${{ matrix.ghc }}-cabal-${{ hashFiles('cabal.project.freeze*') }}-${{github.ref_name}}
+        key: ${{ secrets.CI_CACHE_DATE }}-${{ runner.os }}-${{ matrix.ghc }}-cabal-${{ hashFiles('cabal.project.freeze*') }}-${{github.ref_name}}
         restore-keys: |
-          ${{ runner.os }}-${{ matrix.ghc }}-cabal-${{ hashFiles('cabal.project.freeze*') }}
-          ${{ runner.os }}-${{ matrix.ghc }}-cabal
+          ${{ secrets.CI_CACHE_DATE }}-${{ runner.os }}-${{ matrix.ghc }}-cabal-${{ hashFiles('cabal.project.freeze*') }}
+          ${{ secrets.CI_CACHE_DATE }}-${{ runner.os }}-${{ matrix.ghc }}-cabal
         path: |
           ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
           dist-newstyle
-
-    - name: Display environment info
-      if: runner.os != 'Windows'
-      run: |
-        set -x
-        echo github ref name ${{github.ref_name}}
-        echo cabal store: ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
-        ls -alt
-        cabal --version
-        ghc --version
-        ls -alt ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
-
-    - name: Display environment info
-      if: runner.os == 'Windows'
-      shell: cmd
-      run: |
-        echo github ref name ${{github.ref_name}}
-        echo cabal store: ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
-        dir /n /a
-        cabal --version
-        ghc --version
-        dir /n /a ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
-
 
     - name: Install dependencies
       run: |
@@ -144,32 +121,12 @@ jobs:
     - uses: actions/cache@v1
       name: Cache ~/.stack
       with:
-        key: ${{ runner.os }}-${{ matrix.lts }}-stack-${{ hashFiles('stack-*yaml.lock') }}-${{github.ref_name}}
+        key: ${{ secrets.CI_CACHE_DATE }}-${{ runner.os }}-${{ matrix.lts }}-stack-${{ hashFiles('stack-*yaml.lock') }}-${{github.ref_name}}
         restore-keys: |
-          ${{ runner.os }}-${{ matrix.lts }}-stack-${{ hashFiles('stack-*yaml.lock') }}
-          ${{ runner.os }}-${{ matrix.lts }}-stack
+          ${{ secrets.CI_CACHE_DATE }}-${{ runner.os }}-${{ matrix.lts }}-stack-${{ hashFiles('stack-*yaml.lock') }}
+          ${{ secrets.CI_CACHE_DATE }}-${{ runner.os }}-${{ matrix.lts }}-stack
         path: |
           ${{ steps.setup-haskell-stack.outputs.stack-root }}
-
-    - name: Display environment info
-      if: runner.os != 'Windows'
-      run: |
-        set -x
-        echo github ref name ${{github.ref_name}}
-        echo stack root ${{ steps.setup-haskell-stack.outputs.stack-root }}
-        ls -alt
-        stack --version
-        ls -alt ${{ steps.setup-haskell-stack.outputs.stack-root }}
-
-    - name: Display environment info
-      if: runner.os == 'Windows'
-      shell: cmd
-      run: |
-        echo github ref name ${{github.ref_name}}
-        echo stack root ${{ steps.setup-haskell-stack.outputs.stack-root }}
-        dir /n /a
-        stack --version
-        dir /n /a ${{ steps.setup-haskell-stack.outputs.stack-root }}
 
 
     # see https://github.com/phlummox/hup/issues/8
