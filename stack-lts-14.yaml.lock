@@ -1,0 +1,15 @@
+
+packages:
+- completed:
+    hackage: shelly-1.7.2@sha256:80fb7b2e1372d3931c9a7fecae491780d748a6b293de6aa34faad0c861800004,5168
+    pantry-tree:
+      size: 2251
+      sha256: 4d23b55521d103d13364a9ecc1140de6d51524042e6ad98bce674e2a96ee541a
+  original:
+    hackage: shelly-1.7.2@sha256:80fb7b2e1372d3931c9a7fecae491780d748a6b293de6aa34faad0c861800004,5168
+snapshots:
+- completed:
+    size: 524996
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/14/27.yaml
+    sha256: 7ea31a280c56bf36ff591a7397cc384d0dff622e7f9e4225b47d8980f019a0f0
+  original: lts-14.27
