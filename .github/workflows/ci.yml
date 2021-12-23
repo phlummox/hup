@@ -144,11 +144,20 @@ jobs:
         stack --stack-yaml=stack-${{ matrix.lts }}.yaml build
 
     - name: Test
+      shell: bash
       run: |
-        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --dry-run --test --dependencies-only --flag hup:EnableWebTests
-        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --test --dependencies-only --no-run-tests --flag hup:EnableWebTests
-        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --test --no-run-tests --flag hup:EnableWebTests
-        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --test --flag hup:EnableWebTests
+        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --dry-run \
+              --test --dependencies-only \
+              --flag hup:EnableWebTests --flag hup:BuildStackBasedTests
+        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml \
+              --test --dependencies-only --no-run-tests \
+              --flag hup:EnableWebTests --flag hup:BuildStackBasedTests
+        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml \
+              --test --no-run-tests \
+              --flag hup:EnableWebTests --flag hup:BuildStackBasedTests
+        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml \
+              --test \
+              --flag hup:EnableWebTests --flag hup:BuildStackBasedTests
 
     - name: Copy executable to cwd
       shell: bash
