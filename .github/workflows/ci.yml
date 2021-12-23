@@ -103,27 +103,11 @@ jobs:
         name: cabal-project-freeze
         path: cabal.project.freeze.${{ runner.os }}-${{ matrix.ghc }}
 
-    - name: Archive executable
-      if: runner.os != 'Windows'
-      run: |
-        set -x
-        ls -alt
-        echo dist-newstyle conts
-        ls -alt dist-newstyle
-
-    - name: Archive executable
-      if: runner.os == 'Windows'
-      shell: cmd
-      run: |
-        dir /n /a
-        echo dist-newstyle conts
-        dir /n /a dist-newstyle
-
     - name: Copy executable to cwd
       shell: bash
       run: |
         set -x
-        export artifact_dir="hup-cabal-${{ runner.os }}-${{ matrix.ghc }}"
+        export artifact_dir="binaries/hup-cabal-${{ runner.os }}-${{ matrix.ghc }}"
         mkdir -p "$artifact_dir"
         cabal v2-install --installdir="$artifact_dir" --install-method=copy
 
@@ -131,7 +115,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: hup-binary
-        path: hup-cabal-${{ runner.os }}-${{ matrix.ghc }}
+        path: binaries
 
   stack_build:
     name: ${{ matrix.os }}/ ${{ matrix.lts }}
@@ -210,12 +194,11 @@ jobs:
         stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --test --flag hup:EnableWebTests
 
     - name: Copy executable to cwd
-      if: runner.os != 'Windows'
       shell: bash
       run: |
         set -x
-        export artifact_dir="hup-stack-${{ runner.os }}-${{ matrix.lts }}"
-        mkdir $artifact_dir
+        export artifact_dir="binaries/hup-stack-${{ runner.os }}-${{ matrix.lts }}"
+        mkdir -p "$artifact_dir"
         stack --stack-yaml=stack-${{ matrix.lts }}.yaml --local-bin-path "$artifact_dir" \
           build --copy-bins
 
@@ -223,7 +206,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: hup-binary
-        path: hup-stack-${{ runner.os }}-${{ matrix.lts }}
+        path: binaries
 
 
 
