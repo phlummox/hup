@@ -53,9 +53,23 @@ jobs:
       run: |
         set -x
         echo github ref name ${{github.ref_name}}
+        echo cabal store: ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
+        ls -alt
         cabal --version
         ghc --version
-        ls -alt
+        ls -alt ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
+
+    - name: Display environment info
+      if: runner.os == 'Windows'
+      shell: cmd
+      run: |
+        echo github ref name ${{github.ref_name}}
+        echo cabal store: ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
+        dir /n /a
+        cabal --version
+        ghc --version
+        dir /n /a ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
+
 
     - name: Install dependencies
       run: |
@@ -86,6 +100,27 @@ jobs:
       with:
         name: cabal-project-freeze
         path: cabal.project.freeze.${{ runner.os }}-${{ matrix.ghc }}
+
+    - name: Archive executable
+      if: runner.os != 'Windows'
+      run: |
+        set -x
+        ls -alt
+        echo dist-newstyle conts
+        ls -alt dist-newstyle
+
+    - name: Archive executable
+      if: runner.os == 'Windows'
+      shell: cmd
+      run: |
+        dir /n /a
+        echo dist-newstyle conts
+        dir /n /a dist-newstyle
+
+
+    - name: Install executable
+      run: |
+          cabal -v v2-install
 
   stack_build:
     name: ${{ matrix.os }}/ ${{ matrix.lts }}
@@ -126,8 +161,21 @@ jobs:
       run: |
         set -x
         echo github ref name ${{github.ref_name}}
-        stack --version
+        echo stack root ${{ steps.setup-haskell-stack.outputs.stack-root }}
         ls -alt
+        stack --version
+        ls -alt ${{ steps.setup-haskell-stack.outputs.stack-root }}
+
+    - name: Display environment info
+      if: runner.os == 'Windows'
+      shell: cmd
+      run: |
+        echo github ref name ${{github.ref_name}}
+        echo stack root ${{ steps.setup-haskell-stack.outputs.stack-root }}
+        dir /n /a
+        stack --version
+        dir /n /a ${{ steps.setup-haskell-stack.outputs.stack-root }}
+
 
     # see https://github.com/phlummox/hup/issues/8
     - name: Clear setup-exe-cache directory
@@ -149,5 +197,22 @@ jobs:
         stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --test --dependencies-only --no-run-tests --flag hup:EnableWebTests
         stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --test --no-run-tests --flag hup:EnableWebTests
         stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --test --flag hup:EnableWebTests
+
+    - name: Copy executable to cwd
+      if: runner.os != 'Windows'
+      run: |
+        set -x
+        stack --stack-yaml=stack-${{ matrix.lts }}.yaml --local-bin-path .  build \
+          --copy-bins
+        ls -alt
+
+    - name: Copy executable to cwd
+      if: runner.os == 'Windows'
+      shell: cmd
+      run: |
+        stack --stack-yaml=stack-${{ matrix.lts }}.yaml --local-bin-path .  build \
+          --copy-bins
+        dir /n /a
+
 
 
