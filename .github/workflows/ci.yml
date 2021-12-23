@@ -41,10 +41,21 @@ jobs:
       with:
         # oft-given path of ~/.cabal/store is WRONG on windows.
         # see https://markkarpov.com/post/github-actions-for-haskell-ci.html
-        key: ${{ runner.os }}-${{ matrix.ghc }}-cabal
+        key: ${{ runner.os }}-${{ matrix.ghc }}-cabal-${{ hashFiles('cabal.project.freeze*') }}-${{github.ref_name}}
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.ghc }}-cabal-${{ hashFiles('cabal.project.freeze*') }}
+          ${{ runner.os }}-${{ matrix.ghc }}-cabal
+          ${{ runner.os }}
         path: |
           ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
-          dist-newstyle
+
+    - name: Display environment info
+      if: runner.os != 'Windows'
+      run: |
+        set -x
+        echo github ref name ${{github.ref_name}}
+        echo github ref name ${GITHUB_REF_NAME}
+        ls -alt
 
     - name: Install dependencies
       run: |
@@ -62,9 +73,19 @@ jobs:
 
     #- name: Tests
     #  run: |
-    #    cabal v2-build --dependencies-only --enable-tests --enable-benchmarks --reorder-goals --max-backjumps=-1 --minimize-conflict-set
-    #    cabal v2-test --enable-tests
+    #    cabal v2-build --dependencies-only --enable-tests --enable-benchmarks --reorder-goals --max-backjumps=-1 --minimize-conflict-set --flags "EnableWebTests"
+    #    cabal v2-test --enable-tests --flags "EnableWebTests"
 
+    - name: Freeze dependencies
+      run: |
+        cabal v2-freeze --enable-tests --enable-benchmarks --reorder-goals --max-backjumps=-1  --flags "EnableWebTests"
+        mv cabal.project.freeze cabal.project.freeze.${{ matrix.ghc }}
+
+    - name: Archive dependencies
+      uses: actions/upload-artifact@v2
+      with:
+        name: cabal-project-freeze
+        path: cabal.project.freeze.${{ matrix.ghc }}
 
   stack_build:
     name: ${{ matrix.os }}/ ${{ matrix.lts }}
@@ -93,13 +114,21 @@ jobs:
     - uses: actions/cache@v1
       name: Cache ~/.stack
       with:
-        key: ${{ runner.os }}-${{ matrix.lts }}-stack-${{ hashFiles('stack-*yaml.lock') }}-${GITHUB_REF_NAME}
+        key: ${{ runner.os }}-${{ matrix.lts }}-stack-${{ hashFiles('stack-*yaml.lock') }}-${{github.ref_name}}
         restore-keys: |
           ${{ runner.os }}-${{ matrix.lts }}-stack-${{ hashFiles('stack-*yaml.lock') }}
           ${{ runner.os }}-${{ matrix.lts }}-stack
           ${{ runner.os }}
         path: |
           ${{ steps.setup-haskell-stack.outputs.stack-root }}
+
+    - name: Display environment info
+      if: runner.os != 'Windows'
+      run: |
+        set -x
+        echo github ref name ${{github.ref_name}}
+        echo github ref name ${GITHUB_REF_NAME}
+        ls -alt
 
     # see https://github.com/phlummox/hup/issues/8
     - name: Clear setup-exe-cache directory
@@ -117,9 +146,9 @@ jobs:
 
     - name: Test
       run: |
-        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --dry-run --test --dependencies-only
-        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --test --dependencies-only --no-run-tests
-        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --test --no-run-tests
-        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --test
+        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --dry-run --test --dependencies-only --flag hup:EnableWebTests
+        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --test --dependencies-only --no-run-tests --flag hup:EnableWebTests
+        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --test --no-run-tests --flag hup:EnableWebTests
+        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --test --flag hup:EnableWebTests
 
 
