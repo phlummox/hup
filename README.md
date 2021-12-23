@@ -3,34 +3,47 @@
 [![Build Status](https://github.com/phlummox/hup/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/phlummox/hup/actions/workflows/ci.yml)
 
 Small program for building and uploading packages and documentation
-built with `stack` to a hackage server; a Haskellified version of
-[Oleg Grenrus's script][oleg],
-which is a stack-enabled version of [Eric Mertens's script][eric].
+built with the [`stack`][stack] build tool to a hackage server.
 
-[oleg]: http://web.archive.org/web/20210209123501/https://github.com/mstksg/binary-orphans/commit/3f106567260c1a9bb3063d49948201675876ad12.patch
-[eric]: http://web.archive.org/web/20210209124009/https://github.com/ekmett/lens/commit/12b08783a3e44d46b41553d8a57560c6e68cf7e1.patch
+[stack]: https://www.haskellstack.org/
 
-In addition to `stack`, it requires the `cabal` executable
-(but will install an appropriate `cabal` if it doesn't find one in the
-binaries for the package snapshot your project is using).
+For instance, to upload package documentation to
+<https://hackage.haskell.org/> for a package candidate:
+
+```
+$ hup docboth --candidate --user myHackageUserID --password myHackagePassword
+```
+
+Instead of providing a password on the command line, setting the
+`PASSWORD` environment variable will cause `hup` to use that
+password instead.
+
+In addition to `stack`, `hup` requires the `cabal` executable,
+but will install an appropriate `cabal` if it doesn't find one in the
+binaries for the package snapshot your project is using.
 
 ## Installation
 
-Install in the standard Stack way with `stack install hup`.
+The recommended install method is to run:
 
-Or, if you're using Linux on `x86_64` architecture, you can
-download binaries from the GitHub repository, under "Releases".
+
+```
+$ stack --resolver=lts-11 build --copy-bins hup
+```
+
+On Linux, this will install `hup` to your `~/.local/bin` directory --
+ensure that it's on your PATH, and you're good to go.
 
 ## Quick usage
 
 Try:
 
-~~~
+```
 $ cd /path/to/my/project
 $ stack build
 $ hup packboth -u myHackageUserID -p myHackagePassword
 $ hup docboth -u myHackageUserID -p myHackagePassword
-~~~
+```
 
 ## Usage
 
@@ -142,7 +155,9 @@ To enable bash command-completion:
 
 Run
 
-    hup --help=bash > hup.complete
+```
+$ hup --help=bash > hup.complete
+```
 
 then either "`source hup.complete`" or "`. hup.complete`".
 
@@ -157,4 +172,11 @@ something else before installing.
 
 - Not yet tested on MS Windows or MacOS
 
+## Credits
+
+`hup` is a Haskellified version of [Oleg Grenrus's script][oleg],
+which is a stack-enabled version of [Eric Mertens's script][eric].
+
+[oleg]: http://web.archive.org/web/20210209123501/https://github.com/mstksg/binary-orphans/commit/3f106567260c1a9bb3063d49948201675876ad12.patch
+[eric]: http://web.archive.org/web/20210209124009/https://github.com/ekmett/lens/commit/12b08783a3e44d46b41553d8a57560c6e68cf7e1.patch
 
