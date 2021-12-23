@@ -53,6 +53,7 @@ jobs:
 
     - name: Build
       run: |
+        cabal v2-clean
         cabal v2-build  --reorder-goals --max-backjumps=-1 --minimize-conflict-set
 
     - name: Documentation
@@ -66,7 +67,7 @@ jobs:
 
 
   stack_build:
-    name: ${{ matrix.os }} / stack lts ${{ matrix.lts }}
+    name: ${{ matrix.os }}/ ${{ matrix.lts }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -92,8 +93,9 @@ jobs:
     - uses: actions/cache@v1
       name: Cache ~/.stack
       with:
-        key: ${{ runner.os }}-${{ matrix.lts }}-stack-${{ hashFiles('stack-*yaml.lock') }}
+        key: ${{ runner.os }}-${{ matrix.lts }}-stack-${{ hashFiles('stack-*yaml.lock') }}-${GITHUB_REF_NAME}
         restore-keys: |
+          ${{ runner.os }}-${{ matrix.lts }}-stack-${{ hashFiles('stack-*yaml.lock') }}
           ${{ runner.os }}-${{ matrix.lts }}-stack
           ${{ runner.os }}
         path: |
@@ -113,8 +115,11 @@ jobs:
       run: |
         stack --stack-yaml=stack-${{ matrix.lts }}.yaml build
 
-    #- name: Test
-    #  run: |
-    #    stack test --system-ghc
+    - name: Test
+      run: |
+        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --dry-run --test --dependencies-only
+        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --test --dependencies-only --no-run-tests
+        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --test --no-run-tests
+        stack build --stack-yaml=stack-${{ matrix.lts }}.yaml --test
 
 
