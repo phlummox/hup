@@ -45,7 +45,6 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-${{ matrix.ghc }}-cabal-${{ hashFiles('cabal.project.freeze*') }}
           ${{ runner.os }}-${{ matrix.ghc }}-cabal
-          ${{ runner.os }}
         path: |
           ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
 
@@ -54,7 +53,8 @@ jobs:
       run: |
         set -x
         echo github ref name ${{github.ref_name}}
-        echo github ref name ${GITHUB_REF_NAME}
+        cabal --version
+        ghc --version
         ls -alt
 
     - name: Install dependencies
@@ -79,13 +79,13 @@ jobs:
     - name: Freeze dependencies
       run: |
         cabal v2-freeze --enable-tests --enable-benchmarks --reorder-goals --max-backjumps=-1  --flags "EnableWebTests"
-        mv cabal.project.freeze cabal.project.freeze.${{ matrix.ghc }}
+        mv cabal.project.freeze cabal.project.freeze.${{ runner.os }}-${{ matrix.ghc }}
 
     - name: Archive dependencies
       uses: actions/upload-artifact@v2
       with:
         name: cabal-project-freeze
-        path: cabal.project.freeze.${{ matrix.ghc }}
+        path: cabal.project.freeze.${{ runner.os }}-${{ matrix.ghc }}
 
   stack_build:
     name: ${{ matrix.os }}/ ${{ matrix.lts }}
@@ -118,7 +118,6 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-${{ matrix.lts }}-stack-${{ hashFiles('stack-*yaml.lock') }}
           ${{ runner.os }}-${{ matrix.lts }}-stack
-          ${{ runner.os }}
         path: |
           ${{ steps.setup-haskell-stack.outputs.stack-root }}
 
@@ -127,7 +126,7 @@ jobs:
       run: |
         set -x
         echo github ref name ${{github.ref_name}}
-        echo github ref name ${GITHUB_REF_NAME}
+        stack --version
         ls -alt
 
     # see https://github.com/phlummox/hup/issues/8
