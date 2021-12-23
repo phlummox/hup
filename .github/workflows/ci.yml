@@ -91,6 +91,7 @@ jobs:
     #    cabal v2-test --enable-tests --flags "EnableWebTests"
 
     - name: Freeze dependencies
+      shell: bash
       run: |
         cabal v2-freeze --enable-tests --enable-benchmarks --reorder-goals --max-backjumps=-1  --flags "EnableWebTests"
         mv cabal.project.freeze cabal.project.freeze.${{ runner.os }}-${{ matrix.ghc }}
