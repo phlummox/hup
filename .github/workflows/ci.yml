@@ -47,6 +47,7 @@ jobs:
           ${{ runner.os }}-${{ matrix.ghc }}-cabal
         path: |
           ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
+          dist-newstyle
 
     - name: Display environment info
       if: runner.os != 'Windows'
@@ -118,10 +119,19 @@ jobs:
         echo dist-newstyle conts
         dir /n /a dist-newstyle
 
-
-    - name: Install executable
+    - name: Copy executable to cwd
+      shell: bash
       run: |
-          cabal -v v2-install
+        set -x
+        export artifact_dir="hup-cabal-${{ runner.os }}-${{ matrix.ghc }}"
+        mkdir -p "$artifact_dir"
+        cabal v2-install --installdir="$artifact_dir" --install-method=copy
+
+    - name: Archive executable
+      uses: actions/upload-artifact@v2
+      with:
+        name: hup-binary
+        path: hup-cabal-${{ runner.os }}-${{ matrix.ghc }}
 
   stack_build:
     name: ${{ matrix.os }}/ ${{ matrix.lts }}
@@ -201,19 +211,19 @@ jobs:
 
     - name: Copy executable to cwd
       if: runner.os != 'Windows'
+      shell: bash
       run: |
         set -x
-        stack --stack-yaml=stack-${{ matrix.lts }}.yaml --local-bin-path .  build \
-          --copy-bins
-        ls -alt
+        export artifact_dir="hup-stack-${{ runner.os }}-${{ matrix.lts }}"
+        mkdir $artifact_dir
+        stack --stack-yaml=stack-${{ matrix.lts }}.yaml --local-bin-path "$artifact_dir" \
+          build --copy-bins
 
-    - name: Copy executable to cwd
-      if: runner.os == 'Windows'
-      shell: cmd
-      run: |
-        stack --stack-yaml=stack-${{ matrix.lts }}.yaml --local-bin-path .  build \
-          --copy-bins
-        dir /n /a
+    - name: Archive executable
+      uses: actions/upload-artifact@v2
+      with:
+        name: hup-binary
+        path: hup-stack-${{ runner.os }}-${{ matrix.lts }}
 
 
 
