@@ -41,10 +41,10 @@ jobs:
       with:
         # oft-given path of ~/.cabal/store is WRONG on windows.
         # see https://markkarpov.com/post/github-actions-for-haskell-ci.html
-        key: ${{ runner.os }}-${{ matrix.ghc }}-cabal-${{ hashFiles('cabal.project.freeze*') }}-${{github.ref_name}}
+        key: ${{ secrets.CI_CACHE_DATE }}-${{ runner.os }}-${{ matrix.ghc }}-cabal-${{ hashFiles('cabal.project.freeze*') }}-${{github.ref_name}}
         restore-keys: |
-          ${{ runner.os }}-${{ matrix.ghc }}-cabal-${{ hashFiles('cabal.project.freeze*') }}
-          ${{ runner.os }}-${{ matrix.ghc }}-cabal
+          ${{ secrets.CI_CACHE_DATE }}-${{ runner.os }}-${{ matrix.ghc }}-cabal-${{ hashFiles('cabal.project.freeze*') }}
+          ${{ secrets.CI_CACHE_DATE }}-${{ runner.os }}-${{ matrix.ghc }}-cabal
         path: |
           ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
           dist-newstyle
@@ -144,10 +144,10 @@ jobs:
     - uses: actions/cache@v1
       name: Cache ~/.stack
       with:
-        key: ${{ runner.os }}-${{ matrix.lts }}-stack-${{ hashFiles('stack-*yaml.lock') }}-${{github.ref_name}}
+        key: ${{ secrets.CI_CACHE_DATE }}-${{ runner.os }}-${{ matrix.lts }}-stack-${{ hashFiles('stack-*yaml.lock') }}-${{github.ref_name}}
         restore-keys: |
-          ${{ runner.os }}-${{ matrix.lts }}-stack-${{ hashFiles('stack-*yaml.lock') }}
-          ${{ runner.os }}-${{ matrix.lts }}-stack
+          ${{ secrets.CI_CACHE_DATE }}-${{ runner.os }}-${{ matrix.lts }}-stack-${{ hashFiles('stack-*yaml.lock') }}
+          ${{ secrets.CI_CACHE_DATE }}-${{ runner.os }}-${{ matrix.lts }}-stack
         path: |
           ${{ steps.setup-haskell-stack.outputs.stack-root }}
 
