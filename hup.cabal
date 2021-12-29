@@ -43,7 +43,7 @@ source-repository head
 Flag EnableWebTests
   Description: Enable tests that do a (pretty minimal) check by running an actual
     Warp web server. (Slower to build and run than other tests.)
-  Default:     False
+  Default:     True
   Manual:      True
 
 Flag ExtraGhcWarnings
@@ -171,20 +171,13 @@ test-suite hup-spec
     , hspec
     , hspec-core
     , QuickCheck
-    , simple
+    , scotty
     , temporary
+    , text
     , transformers
     , wai
     , wai-extra
-  if impl(ghc < 8.4.4)
-    build-depends:
-      -- simple-templates 0.9.0.0 has broken bounds.
-      -- (<https://github.com/alevy/simple/issues/25>)
-      -- It states bounds on base of "< 6",
-      -- but the code only seems to build with
-      -- base >= 4.11.1.0 / ghc >= 8.4.4.
-      simple-templates < 0.9.0.0
-
+    , mtl
   ghc-options:      -threaded
                     -rtsopts
                     -with-rtsopts=-N

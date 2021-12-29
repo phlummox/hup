@@ -6,67 +6,48 @@ module Distribution.Hup.Upload.MockWebApp
   )
   where
 
-import Control.Exception                      (throwIO)
-import Control.Monad
-import Control.Monad.IO.Class                 (liftIO, MonadIO)
 import qualified Data.ByteString.Char8 as BS
-import qualified Data.ByteString.Lazy.Char8 as LBS   --   pack
-import Data.Maybe                             (fromJust)
-import Network.HTTP.Types as T                (StdMethod(..))
+import qualified Data.Text.Lazy as TL
+import Network.Wai                            (Application )
 import Network.Wai.Parse as Parse             (FileInfo(..), fileName)
-import Web.Simple (ok, respond,Controller, ControllerT, routePattern, queryParam, routeMethod,parseForm, request, rawPathInfo,controllerApp, Application)
+import Web.Scotty hiding (request)
 
 import Distribution.Hup.Upload
 import Distribution.Hup.Parse
 
--- | We send the parsed results back as plain text,
--- parseable by 'Text.Read.read'.
-webApp :: Application
-webApp = controllerApp () $ do
-    myReq <- request
-    routeMethod T.POST $ do path <- rawPathInfo <$> request
-                            let isCand = if "/candidates/" `BS.isSuffixOf`path
-                                         then CandidatePkg
-                                         else NormalPkg
-                            when (path == "/packages/" ||
-                                 path == "/packages/candidates/") $ do
-                                    (_params, files) <- parseForm
-                                    handlePost isCand files
-    routeMethod T.PUT $ routePattern "/package/:pkgVer/:isCand" $ do
-                            pkgVer <- fromJust <$> queryParam "pkgVer"
-                            let filename = pkgVer :: String
-                            isCand <- fromJust <$> queryParam "isCand"
-                            let isCand' = if ("candidate" :: String) == isCand
-                                         then CandidatePkg
-                                         else NormalPkg
-                            let remainingBit = if "candidate"== isCand
-                                          then "docs"
-                                          else ""
-                            routePattern remainingBit $
-                              handlePut isCand' filename
+webApp :: IO Application
+webApp =
+    scottyApp $ do
+      post "/packages/" $
+        files >>= handlePost NormalPkg
+      post "/packages/candidates/" $
+        files >>= handlePost CandidatePkg
+      put "/package/:pkgVer/docs" $ do
+        pkgVer <- param "pkgVer"
+        handlePut NormalPkg pkgVer
+      put "/package/:pkgVer/candidate/docs" $ do
+        pkgVer <- param "pkgVer"
+        handlePut CandidatePkg pkgVer
   where
-    handlePost :: IsCandidate -> [(a, FileInfo c)] -> ControllerT s IO b
-    handlePost isCand files = do
-      ioAssert (length files == 1)
-               "posted package should have exactly 1 file"
-      let filename = BS.unpack $ Parse.fileName $ snd $ head files
-          parsed :: Either String (IsDocumentation, Package)
-          parsed = parseTgzFilename' filename
-      respond $ ok "text/plain" $ LBS.pack $ show (IsPackage, isCand, parsed)
+    handlePost
+      :: IsCandidate -> [File] -> ActionM ()
+    handlePost isCand files =
+      case files of
+        [(_fname, body)]  -> do
+          let
+              filename = BS.unpack $ Parse.fileName body
 
-    handlePut :: IsCandidate -> FilePath -> Controller s a
+              parsed :: Either String (IsDocumentation, Package)
+              parsed = parseTgzFilename' filename
+          text $ TL.pack $ show (IsPackage, isCand, parsed)
+        _       -> raise "posted package should have exactly 1 file"
+
+    handlePut :: IsCandidate -> FilePath -> ActionM ()
     handlePut isCand filename = do
       let parsed :: Either String (IsDocumentation, Package)
           parsed = parseTgzFilename' (filename ++ "-docs.tar.gz")
-      respond $ ok "text/plain" $ LBS.pack $
+      text $ TL.pack $
                 show (IsDocumentation, isCand, parsed)
-
--- duplicated code from Hup.UploadSpec, remove
--- or refactor
-ioAssert :: MonadIO f => Bool -> String -> f ()
-ioAssert pred mesg =
-  unless pred $
-        liftIO $ throwIO $ userError mesg
 
 
 

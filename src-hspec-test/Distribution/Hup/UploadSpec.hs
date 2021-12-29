@@ -12,20 +12,30 @@ import Data.Monoid                            ( (<>) )
 import Network.HTTP.Client.MultipartFormData  (renderParts,webkitBoundary)
 import Network.HTTP.Types as T                (statusCode,methodPost)
 import Network.Wai.Test                       (simpleStatus,SResponse
-                                              ,simpleBody)
+                                              ,simpleBody, runSession)
+
 import Test.Hspec
-import qualified Test.Hspec.Wai as HWai       --(put, request)
-import Test.Hspec.Wai.Internal                --(WaiSession,runWaiSession)
-import Test.QuickCheck                        --(forAll)
-import Test.QuickCheck.Monadic                --(assert, run, monadicIO )
+import Test.Hspec.Wai.Internal                (WaiSession,runWaiSession,
+                                               getApp)
+import Test.QuickCheck
+import Test.QuickCheck.Monadic
 
+import Distribution.Hup.Parse.Test            ( arbUpload )
+import Distribution.Hup.Upload                (mkPart, bodyToByteString,
+                                                getUploadUrl, Package(..),
+                                                IsDocumentation(..),
+                                                Upload(..), IsCandidate(..)
+                                              )
 
-import Distribution.Hup.Parse
-import Distribution.Hup.Parse.Test
-import Distribution.Hup.Upload
 import Distribution.Hup.Upload.MockWebApp (webApp)
 
 import qualified Distribution.Hup.WebTest
+
+import Network.Wai
+import qualified Network.Wai.Test as Wai
+import Network.HTTP.Types as HT
+
+{-# ANN module ("HLint: ignore Redundant do"      :: String)  #-}
 
 type ParsedTgz = Either String (IsDocumentation, Package)
 
@@ -41,8 +51,10 @@ spec = do
   describe "testing with mocked requests" $
     describe "mocked requests" $
       context "when processed by a mock hackage server" $
-        it "should go to the right web app path"
-          httpMetadataRoundtripsOK'
+        it "should go to the right web app path" $
+          monadicIO $ do
+            webApp' <- run webApp
+            return $ httpMetadataRoundtripsOK' webApp'
   describe "testing with live HTTP requests" $
     -- this will be replaced with a stub unless the WEB_TESTS macro
     -- is defined.
@@ -52,16 +64,20 @@ spec = do
     -- hackage server.
     Distribution.Hup.WebTest.liveTest webApp
 
+httpMetadataRoundtripsOK' :: Application -> Property
+httpMetadataRoundtripsOK' webApp =
+  forAll arbUpload $ \upl -> httpMetadataRoundtripsOK webApp upl
 
-httpMetadataRoundtripsOK' :: Property
-httpMetadataRoundtripsOK' =
-  forAll arbUpload $ \upl -> httpMetadataRoundtripsOK upl
-
-httpMetadataRoundtripsOK :: Upload -> Property
-httpMetadataRoundtripsOK upl = monadicIO $ do
+httpMetadataRoundtripsOK
+  :: Application -> Upload -> Expectation
+httpMetadataRoundtripsOK webApp upl = do
   upl <- return $ upl { fileConts = Just "" }
-  testRequest <- run $ buildTestRequest "" upl
-  testResponse <- run $ sendTestRequest testRequest
+  testRequest   <- buildTestRequest "" upl
+  testResponse  <- sendTestRequest webApp testRequest
+
+  let sentIsCand = isCandidate upl
+      sentIsDoc  = uploadType  upl
+      sentPkg    = package     upl
 
   let resStatus = T.statusCode $ simpleStatus testResponse
       resBody :: String
@@ -69,39 +85,41 @@ httpMetadataRoundtripsOK upl = monadicIO $ do
       _unserialized :: (IsDocumentation, IsCandidate, ParsedTgz)
       _unserialized@(recdIsDoc1, recdIsCand, parsedTgz) = read resBody
 
-  let sentIsCand = isCandidate upl
-      sentIsDoc  = uploadType  upl
-      sentPkg    = package     upl
-
-  assert (resStatus == 200)
-  assert (sentIsCand == recdIsCand)
-  assert (sentIsDoc  == recdIsDoc1)
-  assert (parsedTgz == Right (sentIsDoc, sentPkg) )
+  resStatus `shouldBe` 200
+  sentIsCand `shouldBe` recdIsCand
+  sentIsDoc  `shouldBe` recdIsDoc1
+  parsedTgz `shouldBe` Right (sentIsDoc, sentPkg)
 
 
-sendTestRequest :: WaiSession SResponse -> IO SResponse
-sendTestRequest testReq =
-  runWaiSession testReq webApp
 
 
-testPut :: String -> LBS.ByteString -> WaiSession SResponse
+sendTestRequest ::
+  Application -> (Request, LBS.ByteString) -> IO SResponse
+sendTestRequest webApp req = do
+  runWaiSession (sendRequestImproved req) webApp
+
+
+
+testPut ::
+  String -> LBS.ByteString -> (Request, LBS.ByteString)
 testPut url conts =
-  HWai.put (BS.pack url) conts
+  mkPut (BS.pack url) conts
 
-testPost
-  :: String -> FilePath -> LBS.ByteString -> IO (WaiSession SResponse)
+testPost ::
+  String
+  -> FilePath -> LBS.ByteString -> IO (Request, LBS.ByteString)
 testPost url fileName fileConts = do
   boundary <- webkitBoundary
   let part    = mkPart fileName fileConts
       headers = [("Content-Type",
                     "multipart/form-data; boundary=" <> boundary)]
   body <- bodyToByteString <$> renderParts boundary [part]
-  return $ HWai.request T.methodPost (BS.pack url) headers body
+  return $ mkRequest T.methodPost (BS.pack url) headers body
 
 
 -- Only call when fileConts has something in it.
-buildTestRequest
-  :: String -> Upload -> IO (WaiSession SResponse)
+buildTestRequest ::
+  String -> Upload -> IO (Request, LBS.ByteString)
 buildTestRequest serverUrl upl  = do
   let (Upload _ filePath fileConts uploadType _pkgType ) = upl
       url = getUploadUrl serverUrl upl
@@ -117,7 +135,20 @@ ioAssert pred mesg =
   unless pred $
         liftIO $ throwIO $ userError mesg
 
+-- expose more of hspec wai's 'request' internals
 
+mkRequest ::
+  Method -> BS.ByteString -> RequestHeaders -> LBS.ByteString -> (Request, LBS.ByteString)
+mkRequest method path headers body =
+  let req = defaultRequest {requestMethod = method, requestHeaders = headers}
+  in (Wai.setPath req path, body)
+
+mkPut ::
+  BS.ByteString -> LBS.ByteString -> (Request, LBS.ByteString)
+mkPut path body = mkRequest methodPut path [] body
+
+sendRequestImproved :: (Request, LBS.ByteString) -> WaiSession SResponse
+sendRequestImproved (req, body) = getApp >>= liftIO . runSession (Wai.srequest $ Wai.SRequest req body)
 
 
 
