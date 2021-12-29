@@ -158,7 +158,7 @@ executable hup
 
 test-suite hup-spec
   type:                exitcode-stdio-1.0
-  hs-source-dirs:      src-hspec-test
+  hs-source-dirs:      test-hspec
   main-is:             Spec.hs
   build-depends:
       base
@@ -228,7 +228,7 @@ test-suite hup-spec
 --   a bug in doctest, who knows
 test-suite hup-doctest
   type:                exitcode-stdio-1.0
-  hs-source-dirs:      src-doctest
+  hs-source-dirs:      test-doctest
   main-is:             DocTest.hs
   if !(flag(BuildStackBasedTests))
     buildable: False
