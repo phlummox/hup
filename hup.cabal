@@ -62,7 +62,7 @@ Flag BuildStackBasedTests
 
 
 library
-  hs-source-dirs:      lib
+  hs-source-dirs:      src
   exposed-modules:
       Distribution.Hup
     , Distribution.Hup.BuildTar
@@ -106,7 +106,7 @@ library
 
 
 executable hup
-  hs-source-dirs:      src
+  hs-source-dirs:      app
   main-is:             Main.hs
   other-modules:
       CmdArgs
