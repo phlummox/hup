@@ -6,7 +6,6 @@ module Distribution.Hup.Upload.MockWebApp
   )
   where
 
-
 import Control.Exception                      (throwIO)
 import Control.Monad
 import Control.Monad.IO.Class                 (liftIO, MonadIO)

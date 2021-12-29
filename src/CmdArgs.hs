@@ -12,7 +12,6 @@ import System.Environment      (getArgs, withArgs)
 
 import qualified DefaultServerUrl
 
-import System.Console.CmdArgs.Implicit hiding (cmdArgs)
 import qualified System.Console.CmdArgs.Implicit
 
 cmdArgs :: Data a => a -> IO a

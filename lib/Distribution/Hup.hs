@@ -3,44 +3,44 @@
 
 {- |
   Bits and pieces for building and uploading source or documentation .tar files
-  for Hackage, intended to make it easy to write your own Haskell 
+  for Hackage, intended to make it easy to write your own Haskell
   programs/scripts for managing uploads.
 
   This is the main entry-point to look at, and more low-level functions are
   available in the other modules.
 -}
 
-module Distribution.Hup 
-(
---  -- | module hup
-  module Distribution.Hup 
--- * Finding and parsing Cabal files 
+module Distribution.Hup
+  (
+  --  -- | module hup
+  module Distribution.Hup
+  -- * Finding and parsing Cabal files
   , findCabal
   , readCabal
   , extractCabal
--- * Parsing .tgz file names
+  -- * Parsing .tgz file names
   , parseTgzFilename
   , parseTgzFilename'
--- * Building tar files
+  -- * Building tar files
   , buildTar
--- * Uploading
+  -- * Uploading
   , getUploadUrl
   , mkAuth
   , postPkg
   , putDocs
   , buildRequest
   , sendRequest
--- * Types
+  -- * Types
   , IsCandidate(..)
-  , IsDocumentation(..) 
-  , Package(..) 
+  , IsDocumentation(..)
+  , Package(..)
   , Upload(..)
   , Auth(..)
-)
- where
+  )
+  where
 
 
-import Distribution.Hup.BuildTar 
+import Distribution.Hup.BuildTar
 import Distribution.Hup.Parse
 import Distribution.Hup.Upload
 

@@ -15,7 +15,6 @@ import System.Directory                   (makeAbsolute,doesFileExist )
 import System.Exit
 
 import CmdArgs                            (HupCommands(..), isBoth, isBuild, isUp)
---import CmdArgs.PatchHelp                  (cmdArgs)
 
 import System.Console.CmdArgs.Implicit hiding (cmdArgs)
 import qualified System.Console.CmdArgs.Implicit
