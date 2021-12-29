@@ -29,20 +29,17 @@ arbAuth =
 --
 -- Doesn't check the file/body, just metadata.
 
-{-
-- httpRoundTripsOK'
--   :: (HTTP.Client.Request -> IO Response)
--      -> Int -> Property
--}
+
+httpRoundTripsOK' :: (HTTP.Client.Request -> IO Response) -> Int -> Property
 httpRoundTripsOK' sendRequest port = 
   forAll arbUpload $ \upl ->
     forAll arbAuth $ \auth ->
       httpRoundTripsOK  sendRequest port upl auth
 
-{-
-httpRoundTripsOK :: (HTTP.Client.Request -> IO Response)
-                    -> Int -> Upload -> Maybe Auth -> Property
--}
+
+httpRoundTripsOK ::
+  (HTTP.Client.Request -> IO Response)
+  -> Int -> Upload -> Maybe Auth -> Property
 httpRoundTripsOK sendRequest port upl auth = 
       monadicIO $ do
         response <- run $ emptyFileRequest port upl auth
@@ -87,10 +84,9 @@ badUrlReturns' sendRequest port =
 -- | Given a bad url, the http library should return a 
 -- non-2XX status code, rather than throwing an exception.
 
-{-
-badUrlReturns :: (HTTP.Client.Request -> IO Response)
-                 -> Int -> Upload -> Maybe Auth -> Property
--}
+badUrlReturns ::
+  (HTTP.Client.Request -> IO Response)
+  -> Int -> Upload -> Maybe Auth -> Property
 badUrlReturns sendRequest port upl auth = 
   monadicIO $ do
     response <- run $ badRequest port upl auth

@@ -3,19 +3,21 @@
 module Distribution.Hup.WebTest where
 
 
-import Distribution.Hup.Upload                (sendRequest)
-import Distribution.Hup.Upload.Test
 import Network.Wai                            (Application)
 import Test.Hspec
 import Test.Hspec.Core.QuickCheck             (modifyMaxSuccess)
+
+import Distribution.Hup.Upload                (sendRequest)
+import qualified Distribution.Hup.Upload as U
+import Distribution.Hup.Upload.Test
 
 #ifdef WEB_TESTS
 
 import Control.Concurrent                     (forkIO, ThreadId)
 import qualified Network.Socket as Soc        (Socket, close)
+import Network.HTTP.Client
 import Network.Wai.Handler.Warp               (Port, defaultSettings
                                               ,runSettingsSocket)
-
 
 #if MIN_VERSION_warp(3,2,4)
 import qualified Network.Wai.Handler.Warp as Warp  (openFreePort)
@@ -35,6 +37,8 @@ openFreePort = do
   return (fromIntegral port, s)
 #endif
 
+{-# ANN module "HLint: ignore Redundant do" #-}
+
 -- Pulls a "Right" value out of an Either value.  If the Either value is
 -- Left, raises an exception with "error".
 forceEither :: Show e => Either e a -> a
@@ -47,13 +51,23 @@ startServer webApp = do
   tid <- forkIO $ runSettingsSocket defaultSettings sock webApp
   return (port, sock, tid)
 
+startServer' :: IO Application -> IO (Port, Soc.Socket, ThreadId)
+startServer' webApp = do
+  webApp' <- webApp
+  (port, sock) <- openFreePort
+  tid <- forkIO $ runSettingsSocket defaultSettings sock webApp'
+  return (port, sock, tid)
+
+
+
 shutdownServer :: (Port, Soc.Socket, ThreadId) -> IO ()
 shutdownServer (_port, sock, _tid) =
   Soc.close sock
 
-liveTest :: Application -> SpecWith ()
+--- ?? what exactly is this testing???
+liveTest :: IO Application -> SpecWith ()
 liveTest webApp = do
-    beforeAll (startServer webApp) $ afterAll shutdownServer $
+    beforeAll (startServer' webApp) $ afterAll shutdownServer $
       describe "buildRequest" $ do
         context "when its result is fed into sendRequest" $
           modifyMaxSuccess (const 50) $
@@ -65,10 +79,7 @@ liveTest webApp = do
             it "should not throw an exception" $ \(port, _sock, _tid) ->
               badUrlReturns' sendRequest' port
 
-{-
-sendRequest' :: http-client-0.5.5:Network.HTTP.Client.Types.Request
-                -> IO Distribution.Hup.Upload.Response
--}
+sendRequest' :: Request -> IO U.Response
 sendRequest' req = forceEither <$> sendRequest req
 
 
