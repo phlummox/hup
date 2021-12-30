@@ -1,0 +1,9 @@
+resolver: lts-3.22
+
+packages:
+- .
+
+extra-deps:
+- shelly-1.7.2@sha256:80fb7b2e1372d3931c9a7fecae491780d748a6b293de6aa34faad0c861800004
+
+

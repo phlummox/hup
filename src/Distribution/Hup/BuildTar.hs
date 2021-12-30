@@ -3,8 +3,11 @@
 
 -}
 
-module Distribution.Hup.BuildTar where
-
+module Distribution.Hup.BuildTar
+  (
+    buildTar
+  )
+  where
 
 import Codec.Archive.Tar as Tar (write, pack)
 import qualified Codec.Compression.GZip as GZ

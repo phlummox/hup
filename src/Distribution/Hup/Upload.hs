@@ -11,12 +11,13 @@ in the
 
 -}
 
-module Distribution.Hup.Upload (
+module Distribution.Hup.Upload
+  (
     module Distribution.Hup.Upload
   , module Distribution.Hup.Types
   , Auth(..)
-)
-where
+  )
+  where
 
 import Control.Monad
 import qualified Data.ByteString.Builder as Bu

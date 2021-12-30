@@ -102,9 +102,12 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-18.04, macOS-latest, windows-latest]
+        # As at 2021-12-30:
+        # - compiles and tests OK at least as far back as lts-3.22 (2016-01-10),
+        #   using GHC 7.10.2, base 4.8.1.0, Cabal 1.22, stack 1.9.3
+        # - note that lts >= 15 suffer from the same problem as GHC, above --
+        #   see <https://github.com/phlummox/hup/issues/7>.
         lts: ["lts-11", "lts-14"]
-        # note that lts >= 15 suffer from the same problem as GHC, above --
-        # see <https://github.com/phlummox/hup/issues/7>.
 
     steps:
     - uses: actions/checkout@v2

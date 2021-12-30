@@ -7,7 +7,13 @@ types useful package-wide
 -}
 
 module Distribution.Hup.Types
-where
+  (
+    IsCandidate(..)
+  , IsDocumentation(..)
+  , Package(..)
+  , Upload(..)
+  )
+  where
 
 import qualified Data.ByteString.Lazy as L
 

@@ -12,35 +12,41 @@ haddock docs properly built.
 -}
 
 module DocBuilding
-(
--- * given a 'HupCommand', what arguments are needed
+  (
+  -- * given a 'HupCommand', what arguments are needed
     verbosityArgs
   , haddockExtraArgs
   , cabalExtraArgs
--- * actions
+  -- * actions
   , buildDependencyDocs
   , cabalConfigure
   , cabalHaddock
   , doBuildTar
--- * top-level action
+  -- * top-level action
   , buildDocs
--- * path utilities
+  -- * path utilities
   , buildDir
-)
-where
+  )
+  where
 
-import CmdArgs                    (HupCommands(..))
-import Data.Text                  ( Text )
-import qualified Data.Text as T
-import Data.Monoid                ( (<>) )
-import Shelly.Lifted
-import Data.Char                  (isSpace)
-import Prelude        hiding      (FilePath)
+import Control.Exception.Lifted
 import Control.Monad.IO.Class     ( MonadIO(..) )
-import qualified Stack
-import Distribution.Hup           ( Package(..), buildTar )
-import Control.Exception
+
+import            Data.Text       ( Text )
+import qualified  Data.Text as T
+import            Data.Monoid     ( (<>) )
+import            Data.Char       (isSpace)
+
+import Prelude        hiding      (FilePath)
 import Shelly                     ( ReThrownException )
+import Shelly.Lifted
+
+import Distribution.Hup           ( Package(..), buildTar )
+import CmdArgs                    (HupCommands(..))
+import qualified Stack
+
+{-# ANN module ("HLint: ignore Use list comprehension"  :: String) #-}
+{-# ANN module ("HLint: ignore Use camelCase"           :: String) #-}
 
 -- | just a convenience alias, short for @'MonadIO' m, 'MonadSh' m,
 --  'MonadShControl' m@
@@ -142,7 +148,7 @@ doBuildTar baseDir (Package pkg_ ver_) = do
 -- but here's a convenience function for catching what they look like at
 -- the top level.
 catch_sh_rethrown :: Sh a -> (ReThrownException SomeException -> Sh a) -> Sh a
-catch_sh_rethrown = catch_sh
+catch_sh_rethrown = catch
 
 -- | Build a documentation .tgz file.
 --

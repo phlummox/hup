@@ -1,14 +1,16 @@
 
-{-| 
+{-|
 
 extract info from cabal files and .tgz names.
 
 -}
 
-module Distribution.Hup.Parse (
+module Distribution.Hup.Parse
+  (
     module Distribution.Hup.Parse
-  , module Distribution.Hup.Types 
-)where
+  , module Distribution.Hup.Types
+  )
+  where
 
 import Control.Monad.Except       (MonadError(..),when)
 
@@ -22,23 +24,23 @@ import Data.String
 import System.Directory           (getDirectoryContents)
 import System.FilePath            (splitExtension, splitFileName, takeExtension)
 
-import Distribution.Hup.Types     (IsCandidate(..), IsDocumentation(..) 
+import Distribution.Hup.Types     (IsCandidate(..), IsDocumentation(..)
                                   ,Package(..), Upload(..) )
 
 
 -- | strip whitespace from end
--- 
+--
 -- >>> rstrip "abcd \t\n\r"
 -- "abcd"
 rstrip :: String -> String
-rstrip = dropWhileEnd isSpace 
+rstrip = dropWhileEnd isSpace
 
 -- | strip whitespace from beginning
--- 
+--
 -- >>> lstrip "\t\n\r   abcd"
 -- "abcd"
 lstrip :: String -> String
-lstrip = dropWhile isSpace 
+lstrip = dropWhile isSpace
 
 -- | Replace a subsequence everywhere it occurs. The first argument must
 --   not be the empty list.
@@ -69,11 +71,11 @@ takeWhileEnd p = reverse . takeWhile p . reverse
 
 -- | like 'Data.List.span', but from the end
 --
--- >>> spanEnd (< 3) [4,3,2,1,4,3,2,1] 
+-- >>> spanEnd (< 3) [4,3,2,1,4,3,2,1]
 -- ([4,3,2,1,4,3],[2,1])
 -- >>> spanEnd (< 9) [1,2,3]
 -- ([],[1,2,3])
--- >>> spanEnd (< 0) [1,2,3] 
+-- >>> spanEnd (< 0) [1,2,3]
 -- ([1,2,3],[])
 spanEnd :: (a -> Bool) -> [a] -> ([a], [a])
 spanEnd p xs = (dropWhileEnd p xs, takeWhileEnd p xs)
@@ -81,11 +83,11 @@ spanEnd p xs = (dropWhileEnd p xs, takeWhileEnd p xs)
 
 -- | like 'Data.List.break', but from the end
 --
--- >>> breakEnd (> 3) [4,3,2,1,4,3,2,1] 
+-- >>> breakEnd (> 3) [4,3,2,1,4,3,2,1]
 -- ([4,3,2,1,4],[3,2,1])
--- >>> breakEnd (< 9) [1,2,3] 
+-- >>> breakEnd (< 9) [1,2,3]
 -- ([1,2,3],[])
--- >>> breakEnd (> 9) [1,2,3] 
+-- >>> breakEnd (> 9) [1,2,3]
 -- ([],[1,2,3])
 breakEnd :: (a -> Bool) -> [a] -> ([a], [a])
 breakEnd p = spanEnd (not . p)
@@ -93,7 +95,7 @@ breakEnd p = spanEnd (not . p)
 
 -- | if there's a .cabal file in the current dir, return its file name.
 --
--- from NDM's <https://hackage.haskell.org/package/neil-0.10 neil-0.10> 
+-- from NDM's <https://hackage.haskell.org/package/neil-0.10 neil-0.10>
 findCabal :: IO (Maybe Prelude.FilePath)
 findCabal = do
     x <- getDirectoryContents "."
@@ -102,7 +104,7 @@ findCabal = do
 -- | find & read contents of Cabal file from current dir, if it exists.
 -- else returns empty string.
 --
--- from NDM's <https://hackage.haskell.org/package/neil-0.10 neil-0.10> 
+-- from NDM's <https://hackage.haskell.org/package/neil-0.10 neil-0.10>
 readCabal :: IO String
 readCabal = do
     file <- findCabal
@@ -116,7 +118,7 @@ readCabal = do
 --
 -- field name is case-insensitive [folded to lowercase]
 --
--- from NDM's <https://hackage.haskell.org/package/neil-0.10 neil-0.10> 
+-- from NDM's <https://hackage.haskell.org/package/neil-0.10 neil-0.10>
 extractCabal :: String -> String -> String
 extractCabal find = f . words . replace ":" " : "
     where
@@ -124,22 +126,19 @@ extractCabal find = f . words . replace ":" " : "
         f (_x:xs) = f xs
         f [] = error "Failed to find the Cabal key " ++ find
 
--- | Inspect the name of a .tar.gz file to work out the package name 
+-- | Inspect the name of a .tar.gz file to work out the package name
 -- and version it's for, and whether it is for documentation or a package.
 parseTgzFilename
-   :: (IsString s, MonadError s m) => 
+   :: (IsString s, MonadError s m) =>
        Prelude.FilePath -> m (IsDocumentation, Package)
-parseTgzFilename f = do 
+parseTgzFilename f = do
   let (base, ext) = splitExtension f
   ext `shouldBe` ".gz"
-  (base, ext) <- return $ splitExtension base 
+  (base, ext) <- return $ splitExtension base
   ext `shouldBe` ".tar"
   base        <- return $ snd $ splitFileName base
-  --let isDocco = if "-docs" `isSuffixOf` base
-  --              then IsDocumentation 
-  --              else IsPackage
   (base, isDocco) <- return $ if "-docs" `isSuffixOf` base
-                              then let base' = intercalate "-" $ 
+                              then let base' = intercalate "-" $
                                                init $ splitOn "-" base
                                    in (base', IsDocumentation)
                               else (base, IsPackage)
@@ -148,7 +147,7 @@ parseTgzFilename f = do
   return (isDocco, Package pkg ver)
 
   where
-    ext `shouldBe` expected = 
+    ext `shouldBe` expected =
       when (ext /= expected) $
         throwError $ fromString $ unwords ["Expected filename with extension"
                                            ,"'.tar.gz', but got", f]
@@ -159,9 +158,9 @@ parseTgzFilename f = do
 -- >>> (parseTgzFilename' "foo-bar-baz-0.1.0.0.2.3.0.1.tar.gz") :: Either String (IsDocumentation, Package)
 -- Right (IsPackage,Package {packageName = "foo-bar-baz", packageVersion = "0.1.0.0.2.3.0.1"})
 parseTgzFilename'
-   :: (IsString s) => 
+   :: (IsString s) =>
        Prelude.FilePath -> Either s (IsDocumentation, Package)
-parseTgzFilename'  = parseTgzFilename 
+parseTgzFilename'  = parseTgzFilename
 
 
 

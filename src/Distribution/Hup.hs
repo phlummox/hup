@@ -12,10 +12,8 @@
 
 module Distribution.Hup
   (
-  --  -- | module hup
-  module Distribution.Hup
   -- * Finding and parsing Cabal files
-  , findCabal
+    findCabal
   , readCabal
   , extractCabal
   -- * Parsing .tgz file names
