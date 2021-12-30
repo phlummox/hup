@@ -5,9 +5,13 @@ on:
   pull_request:
     paths-ignore:
       - '**.md'
+      - '**.pmd'
+      - Makefile
   push:
     paths-ignore:
       - '**.md'
+      - '**.pmd'
+      - Makefile
 
 jobs:
   cabal_build:

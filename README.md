@@ -15,7 +15,7 @@ $ hup docboth --candidate --user myHackageUserID --password myHackagePassword
 ```
 
 Instead of providing a password on the command line, setting the
-`PASSWORD` environment variable will cause `hup` to use that
+`HUP_HACKAGE_PASSWORD` environment variable will cause `hup` to use that
 password instead.
 
 In addition to `stack`, `hup` requires the `cabal` executable,
@@ -25,7 +25,6 @@ binaries for the package snapshot your project is using.
 ## Installation
 
 The recommended install method is to run:
-
 
 ```
 $ stack --resolver=lts-11 build --copy-bins hup
@@ -47,48 +46,84 @@ $ hup docboth -u myHackageUserID -p myHackagePassword
 
 ## Usage
 
+
 * `hup [COMMAND] ... [OPTIONS]`
 
   Build and/or upload packages or documentation to a hackage server. A server
-  url should be of the format `PROTOCOL://SERVER[:PORT]/`, and defaults to
-  `https://hackage.haskell.org/` if not specified.
-
-  A password can also be given in the `PASSWORD` environment variable instead
-  of on the command line.
-
+  url should be of the format PROTOCOL://SERVER[:PORT]/, and defaults to
+  https://hackage.haskell.org/ if not specified.
+  
+  A password can also be given in the HUP_HACKAGE_PASSWORD environment variable
+  instead of on the command line.
+  
   'hup --help=all' will give help for all commands.
 
 * Commands:
 
-        packup    Upload FILE as a package (or candidate package).
-        docbuild  Build documentation for a  package.
-        docup     Upload FILE as documentation.
-        docboth   Build and upload documentation for a package.
-
-
+        packbuild  Build source distribution .tgz for a package.
+        packup     Upload FILE as a package (or candidate package).
+        packboth   Build source distribution .tgz and upload as package (or
+                   candidate package).
+        docbuild   Build documentation for a package.
+        docup      Upload FILE as documentation.
+        docboth    Build and upload documentation for a package.
+      
 * Common flags:
 
         -v --verbose          be verbose
-        -h --help             Display help message. '--help=all' will display help
-                              for all commnds. '--help=bash' will output code for
-                              bash command-line completion.
+        -h --help             Display help message
         -V --version          Print version information
            --numeric-version  Print just the version number
+      
+
+  '--help=bash' will output code for bash command-line completion.
+
+### Subcommand details
 
 
+
+* `hup packbuild [OPTIONS]`
+
+  Build source distribution .tgz for a package.
+
+        -v --verbose          be verbose
+        -h --help             Display help message
+        -V --version          Print version information
+           --numeric-version  Print just the version number
+      
 * `hup packup [OPTIONS] FILE`
+
   Upload FILE as a package (or candidate package).
 
   Flags:
 
-        -s --server=URL
-        -c --candidate
-        -u --user=USER
+        -s --server=URL       
+        -c --candidate        
+        -u --user=USER        
         -p --password=PASSWORD
+        -v --verbose            be verbose
+        -h --help               Display help message
+        -V --version            Print version information
+           --numeric-version    Print just the version number
+      
+* `hup packboth [OPTIONS]`
 
+  Build source distribution .tgz and upload as package (or candidate package).
 
+  Flags:
+
+        -s --server=URL       
+        -c --candidate        
+        -u --user=USER        
+        -p --password=PASSWORD
+        -v --verbose            be verbose
+        -h --help               Display help message
+        -V --version            Print version information
+           --numeric-version    Print just the version number
+      
 * `hup docbuild [OPTIONS]`
-  Build documentation for a  package.
+
+  Build documentation for a package.
 
   Flags:
 
@@ -98,19 +133,29 @@ $ hup docboth -u myHackageUserID -p myHackagePassword
                                      all symbols
            --haddock-arguments=ARGS  extra args to pass to haddock
         -q --quick                   quick build - don't build docco for
-                                     dependencies (links will be broken)
-
+                                     dependencies (links may be broken)
+        -v --verbose                 be verbose
+        -h --help                    Display help message
+        -V --version                 Print version information
+           --numeric-version         Print just the version number
+      
 * `hup docup [OPTIONS] FILE`
+
   Upload FILE as documentation.
 
   Flags:
 
-        -s --server=URL
-        -c --candidate
-        -u --user=USER
+        -s --server=URL       
+        -c --candidate        
+        -u --user=USER        
         -p --password=PASSWORD
-
+        -v --verbose            be verbose
+        -h --help               Display help message
+        -V --version            Print version information
+           --numeric-version    Print just the version number
+      
 * `hup docboth [OPTIONS]`
+
   Build and upload documentation for a package.
 
   Flags:
@@ -122,10 +167,17 @@ $ hup docboth -u myHackageUserID -p myHackagePassword
            --haddock-arguments=ARGS  extra args to pass to haddock
         -q --quick                   quick build - don't build docco for
                                      dependencies (links may be broken)
-        -s --server=URL
-        -c --candidate
-        -u --user=USER
-        -p --password=PASSWORD
+        -s --server=URL            
+        -c --candidate             
+        -u --user=USER             
+        -p --password=PASSWORD     
+        -v --verbose                 be verbose
+        -h --help                    Display help message
+        -V --version                 Print version information
+           --numeric-version         Print just the version number
+      
+
+
 
 ## Troubleshooting
 
@@ -180,3 +232,6 @@ which is a stack-enabled version of [Eric Mertens's script][eric].
 [oleg]: http://web.archive.org/web/20210209123501/https://github.com/mstksg/binary-orphans/commit/3f106567260c1a9bb3063d49948201675876ad12.patch
 [eric]: http://web.archive.org/web/20210209124009/https://github.com/ekmett/lens/commit/12b08783a3e44d46b41553d8a57560c6e68cf7e1.patch
 
+<!--
+  vim: syntax=markdown
+-->
