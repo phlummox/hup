@@ -116,7 +116,7 @@ getAuth hc = runMaybeT $ do
   u <- MaybeT $ return $ user hc
   case password hc of
     Just p -> MaybeT $ return $ mkAuth u p
-    Nothing -> do x <- get_env "PASSWORD"
+    Nothing -> do x <- get_env "HUP_HACKAGE_PASSWORD"
                   case x of
                     Nothing -> terror "username specified, but no password"
                     Just p  -> MaybeT $ return $ mkAuth u (T.unpack p)

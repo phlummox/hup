@@ -207,7 +207,7 @@ processArgs = do
      ["Build and/or upload packages or documentation to a hackage server."
      ,"A server url should be of the format PROTOCOL://SERVER[:PORT]/,"
      ,"and defaults to", defaultServer, "if not specified.\n"
-     ,"\nA password can also be given in the PASSWORD environment"
+     ,"\nA password can also be given in the HUP_HACKAGE_PASSWORD environment"
      ,"variable instead of on the command line.\n", "\n'hup --help=all'"
      ,"will give help for all commands." ]
 
