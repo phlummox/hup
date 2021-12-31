@@ -86,7 +86,7 @@ for cmd in cmds:
       line = f"* `{line}`"
 
     if line == "Common flags:":
-      continue
+      break
 
     if idx == 3:
       indentAmount = 2
@@ -102,6 +102,11 @@ for cmd in cmds:
   print("\n".join(global_docco))
 ```
 
+## Library API
+
+For documentation of the library, see the [Hackage documentation][hackage-hup].
+
+[hackage-hup]: https://hackage.haskell.org/package/hup
 
 ## Troubleshooting
 

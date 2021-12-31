@@ -86,11 +86,6 @@ $ hup docboth -u myHackageUserID -p myHackagePassword
 
   Build source distribution .tgz for a package.
 
-        -v --verbose          be verbose
-        -h --help             Display help message
-        -V --version          Print version information
-           --numeric-version  Print just the version number
-      
 * `hup packup [OPTIONS] FILE`
 
   Upload FILE as a package (or candidate package).
@@ -101,11 +96,6 @@ $ hup docboth -u myHackageUserID -p myHackagePassword
         -c --candidate        
         -u --user=USER        
         -p --password=PASSWORD
-        -v --verbose            be verbose
-        -h --help               Display help message
-        -V --version            Print version information
-           --numeric-version    Print just the version number
-      
 * `hup packboth [OPTIONS]`
 
   Build source distribution .tgz and upload as package (or candidate package).
@@ -116,11 +106,6 @@ $ hup docboth -u myHackageUserID -p myHackagePassword
         -c --candidate        
         -u --user=USER        
         -p --password=PASSWORD
-        -v --verbose            be verbose
-        -h --help               Display help message
-        -V --version            Print version information
-           --numeric-version    Print just the version number
-      
 * `hup docbuild [OPTIONS]`
 
   Build documentation for a package.
@@ -134,11 +119,6 @@ $ hup docboth -u myHackageUserID -p myHackagePassword
            --haddock-arguments=ARGS  extra args to pass to haddock
         -q --quick                   quick build - don't build docco for
                                      dependencies (links may be broken)
-        -v --verbose                 be verbose
-        -h --help                    Display help message
-        -V --version                 Print version information
-           --numeric-version         Print just the version number
-      
 * `hup docup [OPTIONS] FILE`
 
   Upload FILE as documentation.
@@ -149,11 +129,6 @@ $ hup docboth -u myHackageUserID -p myHackagePassword
         -c --candidate        
         -u --user=USER        
         -p --password=PASSWORD
-        -v --verbose            be verbose
-        -h --help               Display help message
-        -V --version            Print version information
-           --numeric-version    Print just the version number
-      
 * `hup docboth [OPTIONS]`
 
   Build and upload documentation for a package.
@@ -171,13 +146,13 @@ $ hup docboth -u myHackageUserID -p myHackagePassword
         -c --candidate             
         -u --user=USER             
         -p --password=PASSWORD     
-        -v --verbose                 be verbose
-        -h --help                    Display help message
-        -V --version                 Print version information
-           --numeric-version         Print just the version number
-      
 
 
+## Library API
+
+For documentation of the library, see the [Hackage documentation][hackage-hup].
+
+[hackage-hup]: https://hackage.haskell.org/package/hup
 
 ## Troubleshooting
 
