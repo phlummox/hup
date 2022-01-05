@@ -1,5 +1,5 @@
 name:                hup
-version:             0.3.0.2
+version:             0.3.0.3
 synopsis:            Upload packages and/or documentation to a hackage server
 description:
   Command-line application (plus an associated library) for uploading

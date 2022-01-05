@@ -3,7 +3,7 @@
 Major changes to the library API and executable behaviour will be
 documented here.
 
-## Unreleased
+## 0.3.0.3
 
 - Library API: no changes.
 - Executable behaviour: the environment variable used to pass in a password
