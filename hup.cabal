@@ -2,14 +2,16 @@ name:                hup
 version:             0.3.0.2
 synopsis:            Upload packages and/or documentation to a hackage server
 description:
-  Upload packages or documentation to a hackage server
+  Command-line application (plus an associated library) for uploading
+  Haskell packages or documentation to a hackage server.
   .
-  e.g. @hup packbuild@ builds a source distribution @.tgz@
-  file, ready for uploading; @hup packup somefile.tgz@
+  Some sample command invocations:
+  @/hup packbuild/@ builds a source distribution @.tgz@
+  file, ready for uploading; @/hup packup somefile.tgz/@
   uploads it to a hackage server (<https://hackage.haskell.org/>,
-  by default); and @hup packboth@ combines both steps.
-  @
-  Flags like @[-c|--candidate]@ allow you to upload a
+  by default); and @/hup packboth/@ combines both steps.
+  .
+  Flags like @/[-c|--candidate]/@ allow you to upload a
   candidate package instead.
   .
   Requires that @stack@ (<https://www.haskellstack.org>) be installed.
@@ -33,6 +35,7 @@ cabal-version:       >=1.10
 extra-source-files:
     ChangeLog.md
   , README.md
+  , stack-lts-3.yaml
   , stack-lts-11.yaml
   , stack-lts-14.yaml
 
