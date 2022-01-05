@@ -20,3 +20,4 @@ cabal.project.local
 hup-0.1.0.0-docs.tar.gz
 hup-0.1.0.0.tar.gz
 .*.swp
+.version
