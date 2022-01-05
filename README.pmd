@@ -149,10 +149,20 @@ Uses "`https://hackage.haskell.org/`" as the default server location,
 but see the `DefaultServerUrl` module if you want to patch this to
 something else before installing.
 
-
 ## Bugs and limitations
 
-- Not yet tested on MS Windows or MacOS
+- Some very basic tests of library and app functionality are run on MS Windows
+  and MacOS virtual machines using GitHub and Appveyor's CI/CD capabilities, but
+  no extensive testing on those platforms is performed.
+
+## Feature requests
+
+So that actual bugs and defects aren't cluttered by other issues,
+proposed features and feature requests are maintained as *closed* issues on
+GitHub with the labels "enhancement" and "incomplete"
+(see [here][feature-requests]).
+
+[feature-requests]: https://github.com/phlummox/hup/issues?q=is%3Aissue+is%3Aclosed+label%3Aenhancement+label%3Aincomplete
 
 ## Credits
 
