@@ -1,19 +1,47 @@
 
+# Tips:
+# To run tests for particular LTS with (e.g.):
+#    make STACK_LTS=lts-14 test
+
 .PHONY: test-lts-3
 
 .DELETE_ON_ERROR:
 
 SHELL=bash
 
+# default stack LTS to use
+STACK_LTS=lts-11
+
+ifeq ($(STACK_LTS), lts-3)
+STACK=stack-1.9.3
+else
+STACK=stack
+endif
+
+#STACK_ARGS = --no-run-tests
+
+# Run tests for a particular LTS with (e.g.):
+#    make STACK_LTS=lts-14 test
+test:
+	$(STACK) --stack-yaml=stack-$(STACK_LTS).yaml test $(STACK_ARGS) --fast \
+	  --flag hup:EnableWebTests --flag hup:BuildStackBasedTests
+
 # Test oldest known working stack LTS
 test-lts-3:
-	stack-1.9.3 --stack-yaml=stack-lts-3.yaml test --fast \
-		--flag hup:EnableWebTests --flag hup:BuildStackBasedTests
+	make STACK_LTS=lts-3 test
+
+HUP_STACK_YAML=stack-lts-11.yaml
+
+hup:
+	stack --stack-yaml=$(HUP_STACK_YAML) --local-bin-path . build --copy-bins
 
 README.md:
 
-%.md: %.pmd hup
+%.md: %.pmd ./hup
 	pweave --format=markdown $<
+
+##
+# Some platform-specific commands/invocations
 
 PLATFORM=Linux
 # could also be "macOS" or "Windows"
@@ -30,6 +58,17 @@ GOSS_Windows_EXE=goss-alpha-windows-amd64.exe
 
 GOSS_EXE=$(GOSS_$(PLATFORM)_EXE)
 
+HACKAGE_SERVER_IMG=phlummox/hackage-server:0.1.0
+
+.version:
+	./hup-version.pl $(HUP_STACK_YAML) > .version
+	grep '^[0-9]' .version >/dev/null
+
+# cache version in .version as a side-effect
+ifndef HUP_VERSION
+HUP_VERSION :=$(or $(shell cat .version),$(shell $(MAKE) HUP_VERSION=xxx .version >/dev/null && cat .version))
+endif
+
 GOSS_VERSION=v0.3.16
 GOSS_BASE_URL=https://github.com/aelsabbahy/goss/releases/download/$(GOSS_VERSION)
 GOSS_URL=$(GOSS_BASE_URL)/$(GOSS_EXE)
@@ -42,25 +81,21 @@ $(GOSS_EXE):
 	chmod a+rx $$goss_exe
 	[ -x $(GOSS_EXE) ]
 
-HUP_STACK_YAML=stack-lts-11.yaml
-HACKAGE_SERVER_IMG=phlummox/hackage-server:0.1.0
-HUP_VERSION=$(shell if [ -a .version ]; then cat .version; else ./hup-version.pl $(HUP_STACK_YAML)  | tee .version; fi )
 HUP_TGZ=hup-$(HUP_VERSION).tar.gz
 HUP_TGZ_URL=http://localhost:8080/package/hup-$(HUP_VERSION)/hup-$(HUP_VERSION).tar.gz
 HUP_DOCS_TGZ=hup-$(HUP_VERSION)-docs.tar.gz
 HUP_DOCS_TGZ_URL=http://localhost:8080/package/hup-$(HUP_VERSION)/docs.tar
 
-GOSS_WAITFOR_PORT=GOSS_USE_ALPHA=1 ./$(GOSS_EXE) validate --retry-timeout 90s --sleep 4s
+# wait for a URL to become available
+GOSS_WAITFOR_URL=GOSS_USE_ALPHA=1 ./$(GOSS_EXE) validate --retry-timeout 90s --sleep 4s
 
+# qcow images used when testing with Qemu
 HACKAGE_QCOW_FILE=hackage_server_0.0.1.qcow2
 HACKAGE_QCOW_URL=https://github.com/phlummox/hup/releases/download/v0.3.0.2/qemu-image
 
 $(HACKAGE_QCOW_FILE):
 	curl -L -o $(HACKAGE_QCOW_FILE).gz $(HACKAGE_QCOW_URL)
 	$(GUNZIP) $(HACKAGE_QCOW_FILE).gz
-
-hup:
-	stack --stack-yaml=$(HUP_STACK_YAML) --local-bin-path . build --copy-bins
 
 # work around https://github.com/phlummox/hup/issues/12;
 # can't pass --stack-yaml to hup, so we need to have
@@ -91,7 +126,7 @@ docker-core-test: hup $(HUP_TGZ) $(HUP_DOCS_TGZ) $(GOSS_EXE)
 	set -euo pipefail; \
 	ctr_id=`./start-hackage-server.sh $(PLATFORM)` || true && \
 	echo $$ctr_id && \
-	$(GOSS_WAITFOR_PORT) && \
+	$(GOSS_WAITFOR_URL) && \
 	echo hup tgz: $(HUP_TGZ) && \
 	echo hup tgz: $(HUP_DOCS_TGZ) && \
 	`# build tgz files` \
@@ -117,10 +152,9 @@ docker-test:
 	$(MAKE) docker-core-test
 
 clean:
-		-rm -f dgoss goss goss-* hup $(HUP_TGZ)* $(HUP_DOCS_TGZ)* hup-$(HUP_VERSION)-docs.tar*
+		-rm -f dgoss goss goss-* hup $(HUP_TGZ)* $(HUP_DOCS_TGZ)* hup-$(HUP_VERSION)-docs.tar* .version
 
 extra-clean: clean
 	-stack --stack-yaml=$(HUP_STACK_YAML) clean
 	-rm -f README.md
-
 
