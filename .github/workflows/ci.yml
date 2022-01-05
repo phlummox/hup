@@ -6,12 +6,12 @@ on:
     paths-ignore:
       - '**.md'
       - '**.pmd'
-      - Makefile
+      - appveyor.yml
   push:
     paths-ignore:
       - '**.md'
       - '**.pmd'
-      - Makefile
+      - appveyor.yml
 
 jobs:
   cabal_build:
@@ -117,6 +117,64 @@ jobs:
     - uses: actions/checkout@v2
       name: Check out code
 
+     # takes about 15 min on mac
+    - uses: phlummox-dev/actions-setup-docker@aeefd9ac1777ed7acbc8a2b88a8dbf7bd1de0b06
+      # uses: docker-practice/actions-setup-docker@master
+      # may be bug fixes after commit
+      # e2e6958abd33da9808dbd96cbaf9b4f30b44011c
+      if: runner.os == 'macOS'
+
+    - name: check docker
+      if: runner.os != 'Windows'
+      run: |
+        set -x
+        docker version
+        docker run --rm hello-world
+
+    - name: install libvirt, gmake, coreutils
+      shell: bash
+      run: |
+        set -x
+        case ${{ runner.os }} in
+
+          Linux)
+            sudo apt-get update && sudo apt-get install -y make coreutils
+            ;;
+
+          macOS)
+            # GNU make is already installed
+            brew install coreutils
+            # prob won't actually use libvirt, but meh
+            brew install qemu gcc libvirt
+            # qemu security not supported on mac:
+            # https://www.naut.ca/blog/2020/08/26/ubuntu-vm-on-macos-with-libvirt-qemu/
+            echo 'security_driver = "none"' >> /usr/local/etc/libvirt/qemu.conf
+            echo "dynamic_ownership = 0" >> /usr/local/etc/libvirt/qemu.conf
+            echo "remember_owner = 0" >> /usr/local/etc/libvirt/qemu.conf
+            brew services start libvirt
+            qemu-system-x86_64 --version
+            ;;
+
+          Windows)
+            choco install make
+            choco install gnuwin32-coreutils.install --version 5.3.0
+            # pin the version of qemu installed, since more recent
+            # ones seem buggy: see e.g.
+            # <https://github.com/rust-osdev/bootloader/commit/2efd8824223234bcaf83180207cce6aebec9c45a>
+            #choco install qemu --version 2021.5.5
+            # echo "$Env:Programfiles\qemu" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+            # test w:/ run: qemu-system-x86_64 --version
+            ;;
+
+          *)
+            printf >&2 'Unrecognized OS'
+            false
+            ;;
+        esac
+
+        make --version
+        sha256sum --version
+
     - uses: haskell/actions/setup@v1.2
       name: Setup Stack
       id: setup-haskell-stack
@@ -128,7 +186,7 @@ jobs:
 
     - uses: actions/cache@v2
       name: Cache ~/.stack
-      if: runner.os != 'windows'
+      if: runner.os != 'Windows'
       with:
         key: ${{ secrets.CI_CACHE_DATE }}-${{ runner.os }}-${{ matrix.lts }}-stack-${{ hashFiles('stack-*yaml.lock') }}
         restore-keys: |
@@ -180,6 +238,15 @@ jobs:
         stack build --stack-yaml=stack-${{ matrix.lts }}.yaml \
               --test \
               --flag hup:EnableWebTests --flag hup:BuildStackBasedTests
+
+    - name: docker test
+      if: runner.os != 'Windows'
+      shell: bash
+      run: |
+        set -x
+
+        make PLATFORM=${{ runner.os }} HUP_STACK_YAML=stack-${{ matrix.lts }}.yaml \
+          clean docker-test
 
     - name: Copy executable to cwd
       shell: bash
