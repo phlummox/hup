@@ -1,6 +1,10 @@
 {-# LANGUAGE CPP #-}
 
-module Distribution.Hup.WebTest where
+module Distribution.Hup.WebTest 
+  (
+  liveTest
+  )
+  where
 
 
 import Network.Wai                            (Application)

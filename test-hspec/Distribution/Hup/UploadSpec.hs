@@ -1,14 +1,19 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Distribution.Hup.UploadSpec where
+module Distribution.Hup.UploadSpec 
+  (
+    main
+  , spec
+  )
+  where
 
-import Control.Exception                      (throwIO)
-import Control.Monad
-import Control.Monad.IO.Class                 (liftIO, MonadIO)
+import Control.Monad.IO.Class                 (liftIO)
+
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as LBS   --   pack
 import Data.Maybe                             (fromJust)
 import Data.Monoid                            ( (<>) )
+
 import Network.HTTP.Client.MultipartFormData  (renderParts,webkitBoundary)
 import Network.HTTP.Types as T                (statusCode,methodPost)
 import Network.Wai.Test                       (simpleStatus,SResponse
@@ -129,11 +134,6 @@ buildTestRequest serverUrl upl  = do
          testPost url filePath fileConts
       IsDocumentation ->
          return $ testPut url fileConts
-
-ioAssert :: MonadIO f => Bool -> String -> f ()
-ioAssert pred mesg =
-  unless pred $
-        liftIO $ throwIO $ userError mesg
 
 -- expose more of hspec wai's 'request' internals
 

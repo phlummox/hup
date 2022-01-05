@@ -3,7 +3,11 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module SanityCheck where
+module SanityCheck
+  (
+    sanity
+  )
+  where
 
 import Control.Monad
 import Control.Monad.IO.Class             (MonadIO(..))
@@ -15,12 +19,6 @@ import System.Directory                   (makeAbsolute,doesFileExist )
 import System.Exit
 
 import CmdArgs                            (HupCommands(..), isBoth, isBuild, isUp)
-
-import System.Console.CmdArgs.Implicit hiding (cmdArgs)
-import qualified System.Console.CmdArgs.Implicit
-
-cmdArgs :: Data a => a -> IO a
-cmdArgs = System.Console.CmdArgs.Implicit.cmdArgs
 
 -- TODO:
 --    - does server look like a server?

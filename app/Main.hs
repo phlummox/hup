@@ -9,7 +9,11 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE CPP #-}
 
-module Main where
+module Main 
+  (
+    main
+  )
+  where
 
 import Prelude hiding (FilePath)
 
@@ -19,10 +23,11 @@ import Control.Monad.Reader       (MonadReader(..), runReaderT)
 import Control.Monad.Trans        (lift)
 import Control.Monad.Trans.Maybe  (MaybeT(..))
 import Control.Monad.Trans.Except (ExceptT(..),runExceptT,throwE)
-import Data.Either                (either)
+
 import Data.Text                  ( Text )
 import qualified Data.Text as T
 import Data.Monoid                ( (<>) )
+
 import Shelly.Lifted
 import System.IO                  (hSetBuffering, BufferMode( LineBuffering )
                                   , stdout)
@@ -131,10 +136,6 @@ type MonadDone m a = ExceptT Done m a
 runEarlyReturn :: Monad m => MonadDone m () -> m ()
 runEarlyReturn f =
   either (const ()) id <$> runExceptT f
-
--- exit early
-done :: Monad m => ExceptT Done m a
-done = throwE Done
 
 isCand :: HupCommands -> IsCandidate
 isCand hc =

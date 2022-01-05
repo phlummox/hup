@@ -11,7 +11,7 @@ import Control.Monad.Trans.Except         (runExcept,throwE)
 import Data.ByteString.Lazy.Char8         (unpack)
 import qualified Data.ByteString.Lazy as BS 
 import Data.ByteString.Lazy               (ByteString)
-import Data.List                          (all, maximumBy)
+import Data.List                          (maximumBy)
 import Data.Ord                           (comparing)
 import Text.HTML.TagSoup                  (parseTags, Tag(..),innerText, (~/=))
 

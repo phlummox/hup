@@ -1,5 +1,11 @@
 
-module Types where
+module Types
+  (
+    Server(..)
+  , GlobalOpts(..)
+  , PartialServer
+  )
+  where
 
 
 import Distribution.Hup.Upload

@@ -5,7 +5,12 @@
 
 -}
 
-module Distribution.Hup.Upload.Test where
+module Distribution.Hup.Upload.Test 
+  (
+    httpRoundTripsOK'
+  , badUrlReturns'
+  )
+  where
 
 import qualified Data.ByteString.Lazy.Char8 as LBS   --   pack
 import qualified Network.HTTP.Client as HTTP.Client

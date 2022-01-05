@@ -1,6 +1,11 @@
 
 
-module Distribution.Hup.ParseSpec where
+module Distribution.Hup.ParseSpec
+  (
+    main
+  , spec
+  )
+  where
 
 import Test.Hspec
 import Test.QuickCheck (Gen, Property)

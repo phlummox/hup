@@ -5,7 +5,13 @@
 Support code for testing Distribution.Hup.Parse
 
 -}
-module Distribution.Hup.Parse.Test where
+module Distribution.Hup.Parse.Test 
+  (
+    arbWord
+  , arbUpload
+  , prop_parseTgzFilename_roundtripsOK
+  )
+  where
 
 import Data.List                  (intercalate)
 import Data.ByteString.Lazy.Char8 (pack)

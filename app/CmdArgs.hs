@@ -2,8 +2,23 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# OPTIONS_GHC -fno-cse #-}
 {-# OPTIONS_GHC -fno-warn-missing-fields #-}
+{-# LANGUAGE CPP #-}
 
-module CmdArgs where
+#if __GLASGOW_HASKELL__ >= 804
+{-# OPTIONS_GHC -Wno-partial-fields #-}
+#endif
+
+module CmdArgs
+  (
+    isDoc
+  , isBuild
+  , isBoth
+  , isUp
+  , HupCommands(..)
+  , isUpload
+  , processArgs
+  )
+  where
 
 import Data.Version            (showVersion)
 import Paths_hup               (version)

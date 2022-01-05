@@ -1,6 +1,9 @@
 
-
-module DefaultServerUrl where
+module DefaultServerUrl
+  (
+    defaultServerUrl
+  )
+  where
 
 -- | The default hackage server URL.
 defaultServerUrl :: String

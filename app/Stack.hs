@@ -10,7 +10,15 @@ Abstract over some of stack's functionality.
 -}
 
 module Stack
-where
+  (
+    haddockCanHyperlinkSrc
+  , addHaddockPath
+  , cabalInstalled
+  , installCabal
+  , addCabalPath
+  , extractPath
+  )
+  where
 
 import Control.Monad.IO.Class     ( MonadIO(..) )
 import Shelly.Lifted
