@@ -1,5 +1,23 @@
 # Changelog for Hup
 
+Major changes to the library API and executable behaviour will be
+documented here.
+
+## Unreleased
+
+- Library API: no changes.
+- Executable behaviour: the environment variable used to pass in a password
+  has changed from PASSWORD to HUP_HACKAGE_PASSWORD.
+  (Fixes [#14](https://github.com/phlummox/hup/issues/14))
+- Repository changes:
+  - Renamed source code directories
+  - Did some (API-unchanging) tidying of source code files
+  - Got basic builds and tests working on Windows and MacOS again
+    (fixes [#7](https://github.com/phlummox/hup/issues/7))
+  - Added a "smoke test" (test of basic app functionality)
+    against an instance of hackage-server running in a Docker
+    container.
+
 ## 0.3.0.2
 
 - Library API: no changes.
