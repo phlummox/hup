@@ -1,22 +1,23 @@
 # hup [![Hackage version](https://img.shields.io/hackage/v/hup.svg?label=Hackage)](https://hackage.haskell.org/package/hup)
 
 [![Build Status](https://github.com/phlummox/hup/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/phlummox/hup/actions/workflows/ci.yml)
+[![Windows build status](https://ci.appveyor.com/api/projects/status/htfimtle01wo328u/branch/master?svg=true&passingText=Windows%20build%20passing&failingText=Windows%20build%20failing&pendingText=Windows%20build%20pending)](https://ci.appveyor.com/project/phlummox/hup/branch/master)
 
 Small program for building and uploading packages and documentation
 built with the [`stack`][stack] build tool to a hackage server.
 
 [stack]: https://www.haskellstack.org/
 
-For instance, to upload package documentation to
+For instance, to build and upload package documentation to
 <https://hackage.haskell.org/> for a package candidate:
 
 ```
 $ hup docboth --candidate --user myHackageUserID --password myHackagePassword
 ```
 
-Instead of providing a password on the command line, setting the
-`HUP_HACKAGE_PASSWORD` environment variable will cause `hup` to use that
-password instead.
+Instead of providing a password on the command line, you can set the
+`HUP_HACKAGE_PASSWORD` environment variable and `hup` will use that as the
+password.
 
 In addition to `stack`, `hup` requires the `cabal` executable,
 but will install an appropriate `cabal` if it doesn't find one in the
@@ -47,7 +48,7 @@ $ hup docboth -u myHackageUserID -p myHackagePassword
 ## Usage
 ```python, echo=False, results="markdown"
 from subprocess import run, PIPE
-res = run(["hup", "--help"], stdout=PIPE, encoding="utf8")
+res = run(["./hup", "--help"], stdout=PIPE, encoding="utf8")
 
 global_docco = []
 
@@ -76,7 +77,7 @@ from subprocess import run, PIPE
 cmds = ["packbuild", "packup", "packboth", "docbuild", "docup", "docboth"]
 
 for cmd in cmds:
-  res = run(["hup", cmd, "--help"], stdout=PIPE, encoding="utf8")
+  res = run(["./hup", cmd, "--help"], stdout=PIPE, encoding="utf8")
 
   global_docco = []
 

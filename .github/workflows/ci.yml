@@ -7,11 +7,13 @@ on:
       - '**.md'
       - '**.pmd'
       - appveyor.yml
+      - .gitignore
   push:
     paths-ignore:
       - '**.md'
       - '**.pmd'
       - appveyor.yml
+      - .gitignore
 
 jobs:
   cabal_build:
