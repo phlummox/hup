@@ -11,6 +11,8 @@ SHELL=bash
 
 # default stack LTS to use
 STACK_LTS=lts-11
+# default stack.yaml file to use
+HUP_STACK_YAML=stack-$(STACK_LTS).yaml
 
 ifeq ($(STACK_LTS), lts-3)
 STACK=stack-1.9.3
@@ -30,10 +32,8 @@ test:
 test-lts-3:
 	make STACK_LTS=lts-3 test
 
-HUP_STACK_YAML=stack-lts-11.yaml
-
 hup:
-	stack --stack-yaml=$(HUP_STACK_YAML) --local-bin-path . build --copy-bins
+	stack --stack-yaml=$(HUP_STACK_YAML) --local-bin-path . build $(STACK_ARGS) --copy-bins
 
 README.md:
 
@@ -66,7 +66,7 @@ HACKAGE_SERVER_IMG=phlummox/hackage-server:0.1.0
 
 # cache version in .version as a side-effect
 ifndef HUP_VERSION
-HUP_VERSION :=$(or $(shell cat .version),$(shell $(MAKE) HUP_VERSION=xxx .version >/dev/null && cat .version))
+HUP_VERSION :=$(or $(shell cat .version),$(shell $(MAKE) STACK_LTS=$(STACK_LTS) HUP_VERSION=xxx .version >/dev/null && cat .version))
 endif
 
 GOSS_VERSION=v0.3.16
@@ -151,10 +151,40 @@ docker-test:
 	-docker stop -t 1 hackage-server-ctr
 	$(MAKE) docker-core-test
 
+
+stack_static_root=stack-static-root
+
+STATIC_ARGS = --local-bin-path static-binaries \
+		--skip-ghc-check --system-ghc --stack-yaml=stack-static.yaml \
+		--stack-root=/$(stack_static_root) \
+		--work-dir=.stack-static-work
+
+# for running lo pri in background:
+#DOCKER_LIMITS = \
+#		--memory-reservation 2G -m 2G --memory-swap=4G \
+#		--cpu-period=100000 --cpu-quota=45000
+
+hask-alp-ctr:
+	docker -D run --detach --rm -it --workdir=/work \
+		$(DOCKER_LIMITS) \
+		-v $${PWD}/.$(stack_static_root):/$(stack_static_root) -v $$PWD:/work \
+		--name=hask-alp-ctr --user $$UID \
+		phlummox/alpine-haskell-stack:latest
+
+static-binaries/hup:
+	-docker stop -t 1 hask-alp-ctr
+	mkdir -p .$(stack_static_root) .stack-static-work
+	sleep 1
+	make hask-alp-ctr
+	docker -D exec -it hask-alp-ctr stack $(STATIC_ARGS) build --ghc-options '-fPIC -optl -static' --fast --copy-bins
+
 clean:
-		-rm -f dgoss goss goss-* hup $(HUP_TGZ)* $(HUP_DOCS_TGZ)* hup-$(HUP_VERSION)-docs.tar* .version
+		-rm -rf dgoss goss goss-* \
+			hup $(HUP_TGZ)* $(HUP_DOCS_TGZ)* hup-$(HUP_VERSION)-docs.tar* \
+			.version \
+			static-binaries
 
 extra-clean: clean
 	-stack --stack-yaml=$(HUP_STACK_YAML) clean
-	-rm -f README.md
+	-rm -rf README.md .stack-static-*
 
