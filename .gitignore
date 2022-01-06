@@ -22,3 +22,5 @@ hup-0.1.0.0.tar.gz
 .*.swp
 .version
 /hup
+/.stack-static-root
+/.stack-static-work

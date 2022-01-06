@@ -265,3 +265,41 @@ jobs:
         name: hup-binary
         path: binaries
 
+  stack_static_build:
+    name: linux static link
+    runs-on: ubuntu-18.04
+
+    steps:
+    - uses: actions/checkout@v2
+      name: Check out code
+
+    - name: install libvirt, gmake, coreutils
+      shell: bash
+      run: |
+        set -x
+        sudo apt-get update && sudo apt-get install -y make coreutils
+
+    - uses: actions/cache@v2
+      name: Cache ~/.stack
+      with:
+        key: ${{ secrets.CI_CACHE_DATE }}-${{ runner.os }}-stack-static
+        path: |
+          .stack-static-root
+
+    - name: check docker
+      run: |
+        set -x
+        docker version
+        docker run --rm hello-world
+
+    - name: Build
+      run: |
+        make static-binaries/hup
+
+    - name: Archive executable
+      uses: actions/upload-artifact@v2
+      with:
+        name: hup-static-binary
+        path: static-binaries
+
+

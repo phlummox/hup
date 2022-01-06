@@ -159,24 +159,26 @@ STATIC_ARGS = --local-bin-path static-binaries \
 		--stack-root=/$(stack_static_root) \
 		--work-dir=.stack-static-work
 
-# for running lo pri in background:
+# for running lo pri in background. and using term
+#DOCKER_TERM = it
 #DOCKER_LIMITS = \
+#		-it \
 #		--memory-reservation 2G -m 2G --memory-swap=4G \
 #		--cpu-period=100000 --cpu-quota=45000
 
 hask-alp-ctr:
-	docker -D run --detach --rm -it --workdir=/work \
+	docker -D run --detach --rm --workdir=/work \
 		$(DOCKER_LIMITS) \
 		-v $${PWD}/.$(stack_static_root):/$(stack_static_root) -v $$PWD:/work \
 		--name=hask-alp-ctr --user $$UID \
-		phlummox/alpine-haskell-stack:latest
+		phlummox/alpine-haskell-stack:latest tail -f /dev/null
 
 static-binaries/hup:
 	-docker stop -t 1 hask-alp-ctr
 	mkdir -p .$(stack_static_root) .stack-static-work
 	sleep 1
 	make hask-alp-ctr
-	docker -D exec -it hask-alp-ctr stack $(STATIC_ARGS) build --ghc-options '-fPIC -optl -static' --fast --copy-bins
+	docker -D exec $(DOCKER_TERM) hask-alp-ctr stack $(STATIC_ARGS) build --ghc-options '-fPIC -optl -static' --fast --copy-bins
 
 clean:
 		-rm -rf dgoss goss goss-* \

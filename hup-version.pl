@@ -10,7 +10,9 @@ if (scalar @ARGV == 1) {
   $stack_yaml="stack.yaml";
 }
 
-my @lines=`stack --stack-yaml=${stack_yaml} ls dependencies`;
+my $cmd="stack --stack-yaml=${stack_yaml} ls dependencies";
+print STDERR "+running: '$cmd'\n";
+my @lines=`$cmd`;
 @lines = grep(/^hup/, @lines);
 
 scalar @lines == 1 ||
