@@ -9,8 +9,11 @@ cache:
 skip_commits:
   files:
     - .github/workflows/*
-    - "*.md"
-    - "*.pmd"
+    - '**/*.md'
+    - '**/*.pmd'
+    - .gitignore
+    - cabal.project.*
+    - LICENSE
 
 environment:
   matrix:

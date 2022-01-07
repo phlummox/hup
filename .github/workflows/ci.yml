@@ -302,4 +302,37 @@ jobs:
         name: hup-static-binary
         path: static-binaries
 
+    - name: create release
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: |
+        set -x
+
+        # prepare file
+        ref_name='${{github.ref_name}}'
+        version="${ref_name:1}" # strip leading 'v'
+        tar cvf hup-${version}-linux-amd64.tar.xz --xz -C static-binaries hup
+
+        # download github-release tool
+        curl -L 'https://github.com/github-release/github-release/releases/download/v0.10.0/linux-amd64-github-release.bz2' | bunzip2 > github-release
+        chmod a+rx ./github-release
+
+        export GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
+        IFS='/' read repo_user repo_name  <<<$(echo "${{github.repository}}")
+
+        ./github-release release \
+            --user $repo_user \
+            --repo $repo_name \
+            --tag ${{github.ref_name}} \
+            --name "Version $version" \
+            --description "See the changelog for a detailed list of changes" \
+            --draft
+
+        ./github-release upload \
+            --user $repo_user \
+            --repo $repo_name \
+            --tag ${{github.ref_name}} \
+            --label "hup-${version}-linux-amd64.tar.xz" \
+            --name "hup-${version}-linux-amd64.tar.xz" \
+            --replace \
+            --file "hup-${version}-linux-amd64.tar.xz"
 
