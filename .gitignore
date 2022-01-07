@@ -24,3 +24,4 @@ hup-0.1.0.0.tar.gz
 /hup
 /.stack-static-root
 /.stack-static-work
+/static-binaries
