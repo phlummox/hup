@@ -34,9 +34,15 @@ $ stack --resolver=lts-11 build --copy-bins hup
 On Linux, this will install `hup` to your `~/.local/bin` directory --
 ensure that it's on your PATH, and you're good to go.
 
+Alternatively, you can download a statically linked executable
+(for Linux, AMD64 architecture) from the "[Releases][releases]"
+page.
+
+[releases]: https://github.com/phlummox/hup/releases
+
 ## Quick usage
 
-Try:
+Try something like:
 
 ```
 $ cd /path/to/my/project
