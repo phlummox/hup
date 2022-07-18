@@ -120,8 +120,8 @@ cabalHaddock baseDir verbosityArgs haddockExtraArgs = do
                       then ["--haddock-option=--hyperlinked-source"]
                       else []
   run_ "cabal" $ ["haddock", "--builddir=" <> tt (buildDir baseDir),
-                  "--html-location=/package/$pkg-$version/docs",
-                  "--contents-location=/package/$pkg-$version"]
+                  "--haddock-html-location=/package/$pkg-$version/docs",
+                  "--haddock-contents-location=/package/$pkg-$version"]
                   ++ hyperlinkArgs ++ verbosityArgs
                   ++ haddockExtraArgs
 
